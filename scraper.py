@@ -28,7 +28,7 @@ for a in soup.find_all("a"):
         news.append({
             "title": title,
             "link": link,
-            "source": "المشهد اليمني"
+            "source": " وكالة الانباء اليمنية سبأ"
         })
 
 print("News found:", len(news))
