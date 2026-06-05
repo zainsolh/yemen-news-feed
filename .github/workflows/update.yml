@@ -12,15 +12,17 @@ jobs:
 
     steps:
 
-      - uses: actions/checkout@v4
+  - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+  - uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
 
-      - run: python scraper.py
+  - run: pip install requests beautifulsoup4
 
-      - run: ls -la
+  - run: python scraper.py
+
+  - run: ls -la
       - name: Commit changes
         run: |
           git config user.name github-actions
