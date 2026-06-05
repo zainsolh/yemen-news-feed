@@ -5,7 +5,10 @@ import json
 url = "https://www.almashhad.news/"
 
 headers = {
-    "User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "ar,en-US;q=0.9,en;q=0.8",
+    "Referer": "https://www.google.com/"
 }
 
 r = requests.get(url, headers=headers, timeout=20)
