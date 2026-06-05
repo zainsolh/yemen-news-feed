@@ -1,0 +1,40 @@
+name: Auto Saba News Bot
+
+on:
+  schedule:
+    - cron: '0 * * * *' # تشغيل تلقائي كل رأس ساعة
+  workflow_dispatch: # يتيح لك تشغيل البوت يدوياً في أي وقت للتجربة
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        pip install feedparser requests
+
+    - name: Run Python Script
+      env:
+        BLOG_ID: ${{ secrets.BLOG_ID }}
+        CLIENT_ID: ${{ secrets.CLIENT_ID }}
+        CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+        REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+      run: python fetch_news.py
+
+    # خطوة هامة: حفظ ملف الروابط المنشورة وتحديثه في جيت هاب لمنع تكرار النشر مستقبلاً
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "Saba News Bot"
+        git config --global user.email "bot@github.com"
+        git add published_urls.txt || true
+        git commit -m "Update published news log [skip ci]" || true
+        git push || true
