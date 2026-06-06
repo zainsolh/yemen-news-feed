@@ -1,15 +1,15 @@
-name: Auto Saba News Bot
+name: Yemen News Feed Bot
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '0 * * * *' # تشغيل تلقائي كل رأس ساعة
-  workflow_dispatch: # يتيح لك تشغيل البوت يدوياً في أي وقت للتجربة
+    - cron: '0 */3 * * *'
 
 jobs:
-  run-bot:
+  build:
     runs-on: ubuntu-latest
 
-        steps:
+    steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
