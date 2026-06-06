@@ -48,7 +48,7 @@ def fetch_latest_news():
             "link": "https://example.com/news1"
         }
     ]
-    ]
+    
 
 
 def publish_to_blogger(access_token, title, content, link):
