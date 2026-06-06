@@ -11,7 +11,7 @@ CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
 # رابط خلاصة الأخبار (RSS Feed) لموقع صحافة نت لجلب الأخبار الحية فور صدورها
-NEWS_RSS_URL = "https://sahaafa.net/feed"
+NEWS_RSS_URL = "https://www.sabanew.net/"
 
 def get_google_access_token():
     """
