@@ -13,7 +13,10 @@ REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 # 1. قائمة المصادر الإخبارية (يمكنك إضافة أي مصدر جديد هنا مستقبلاً بنفس الطريقة)
 NEWS_SOURCES = [
     {"name": "صحافة نت", "url": "https://sahaafa.net/feed"},
-    {"name": "وكالة سبأ", "url": "https://www.sabanew.net/rss"} # ملاحظة: تأكد أن هذا هو رابط الـ RSS الرسمي لوكالة سبأ
+    {"name": "مأرب برس", "url": "https://marebpress.net/rss.php"},
+       {"name": "براقش نت", "url": "https://barakish.net/rss.php"},
+    {"name": "الموقع بوست", "url": "https://almawqeapost.net/rss"},
+    {"name": "وكالة سبأ", "url": "https://www.sabanew.net/home/viewcategory/rss.php?lang=ar"}
 ]
 
 # 2. إعداد ملف الذاكرة لمنع تكرار نشر نفس الخبر
