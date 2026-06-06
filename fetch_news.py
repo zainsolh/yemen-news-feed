@@ -35,6 +35,10 @@ def fetch_latest_news():
         try:
             # جلب البيانات مع الهوية والتوقيت المحدد
             response = requests.get(source["url"], headers=HEADERS, timeout=20)
+
+print(f"\n=== {source['name']} ===")
+print("Status:", response.status_code)
+print(response.text[:500])
             feed = feedparser.parse(response.content)
             
             if feed.entries:
