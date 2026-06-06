@@ -1,15 +1,36 @@
 import os
 import requests
+from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
+# =========================
 # إعدادات Blogger
+# =========================
 BLOG_ID = os.environ.get("BLOG_ID")
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+}
 
+# =========================
+# المواقع
+# =========================
+SOURCES = [
+    {"name": "سبأ نت", "url": "https://www.sabanew.net"},
+    {"name": "المشهد اليمني", "url": "https://www.almashhad.news"},
+    {"name": "عدن الغد", "url": "https://www.adngad.net"},
+    {"name": "صحافة نت", "url": "https://sahaafa.net"},
+    {"name": "الهدهد", "url": "https://al-hudhud.net"},
+]
+
+
+# =========================
+# جلب Google Token
+# =========================
 def get_google_access_token():
     creds = Credentials(
         token=None,
@@ -18,119 +39,124 @@ def get_google_access_token():
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET
     )
-
     creds.refresh(Request())
     return creds.token
 
 
-LOG_FILE = "published_urls.txt"
+# =========================
+# استخراج الأخبار
+# =========================
+def scrape_site(name, url):
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        soup = BeautifulSoup(r.text, "lxml")
 
-def load_published_urls():
-    if not os.path.exists(LOG_FILE):
-        return set()
+        articles = []
 
-    with open(LOG_FILE, "r", encoding="utf-8") as f:
-        return set(line.strip() for line in f if line.strip())
+        # محاولة عامة لاستخراج الأخبار (تعمل مع أغلب المواقع)
+        for item in soup.select("a"):
+            title = item.get_text(strip=True)
+            link = item.get("href")
 
+            if not title or not link:
+                continue
 
-def save_published_url(url):
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(url + "\n")
+            if len(title) < 15:
+                continue
+
+            if link.startswith("/"):
+                link = url.rstrip("/") + link
+
+            if name == "سبأ نت":
+                base = "https://www.sabanew.net"
+                if not link.startswith("http"):
+                    link = base + link
+
+            articles.append({
+                "title": title,
+                "summary": "",
+                "link": link
+            })
+
+            if len(articles) >= 5:
+                break
+
+        return articles
+
+    except Exception as e:
+        print(f"❌ خطأ في {name}: {e}")
+        return []
 
 
 def fetch_latest_news():
-    print("🧪 اختبار منع التكرار")
+    print("🛰️ بدء جلب الأخبار من المواقع...")
 
-    return [
-        {
-            "title": "خبر تجريبي",
-            "summary": "هذا الخبر يجب أن ينشر مرة واحدة فقط.",
-            "link": "https://example.com/news1"
-        }
-    ]
-    
+    all_articles = []
+
+    for source in SOURCES:
+        print(f"\n=== {source['name']} ===")
+
+        items = scrape_site(source["name"], source["url"])
+
+        if items:
+            print(f"✅ تم جلب {len(items)} أخبار")
+            all_articles.extend(items)
+        else:
+            print("⚠️ لم يتم العثور على أخبار")
+
+    return all_articles
 
 
-def publish_to_blogger(access_token, title, content, link):
+# =========================
+# نشر إلى Blogger
+# =========================
+def publish_to_blogger(token, title, content, link):
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
 
     headers = {
-        "Authorization": f"Bearer {access_token}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
     payload = {
-        "kind": "blogger#post",
         "title": title,
-        "content": f"""
-        <p>{content}</p>
-        <br>
-        <a href="{link}">قراءة الخبر من المصدر</a>
-        """
+        "content": f"{content}<br><br><a href='{link}'>المصدر</a>"
     }
 
-    response = requests.post(
-        url,
-        json=payload,
-        headers=headers
-    )
+    r = requests.post(url, json=payload, headers=headers)
 
-    print(f"نتيجة النشر: {response.status_code}")
+    print("نشر:", r.status_code)
 
-    if response.status_code != 200:
-        print(response.text)
-
-    return response.status_code == 200
+    return r.status_code == 200
 
 
+# =========================
+# main
+# =========================
 def main():
 
-    if not all([
-        BLOG_ID,
-        CLIENT_ID,
-        CLIENT_SECRET,
-        REFRESH_TOKEN
-    ]):
-        print("❌ مفاتيح Blogger غير مكتملة")
+    if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
+        print("❌ Secrets ناقصة")
         return
 
-    access_token = get_google_access_token()
+    token = get_google_access_token()
 
     articles = fetch_latest_news()
 
     if not articles:
-        print("\nℹ️ لا توجد أخبار جديدة للنشر")
+        print("❌ لا توجد أخبار")
         return
 
-    print(f"\nتم العثور على {len(articles)} خبر")
+    for a in articles[:10]:  # حد أقصى للنشر
 
-    # تحميل الروابط المنشورة سابقاً
-    published_urls = load_published_urls()
+        print("نشر:", a["title"])
 
-    for article in articles:
-
-        link = article.get("link")
-
-        # 🔴 هنا منع التكرار داخل main
-        if link in published_urls:
-            print(f"⏭️ تم تخطي خبر مكرر: {link}")
-            continue
-
-        title = article.get("title", "خبر جديد")
-        summary = article.get("summary", "")
-
-        print(f"\nمحاولة نشر: {title}")
-
-        if publish_to_blogger(
-            access_token,
-            title,
-            summary,
-            link
-        ):
-            print(f"✅ تم نشر: {title}")
-            save_published_url(link)
-        else:
-            print(f"❌ فشل نشر: {title}")
+        publish_to_blogger(
+            token,
+            a["title"],
+            a["summary"],
+            a["link"]
+        )
 
 
 if __name__ == "__main__":
