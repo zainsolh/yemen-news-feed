@@ -23,15 +23,31 @@ def get_google_access_token():
     return creds.token
 
 
+LOG_FILE = "published_urls.txt"
+
+def load_published_urls():
+    if not os.path.exists(LOG_FILE):
+        return set()
+
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        return set(line.strip() for line in f if line.strip())
+
+
+def save_published_url(url):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(url + "\n")
+
+
 def fetch_latest_news():
-    print("🧪 تشغيل اختبار Blogger")
+    print("🧪 اختبار منع التكرار")
 
     return [
         {
-            "title": "اختبار النشر التلقائي",
-            "summary": "إذا ظهر هذا المنشور في Blogger فمعنى ذلك أن الربط يعمل بنجاح.",
-            "link": "https://example.com"
+            "title": "خبر تجريبي",
+            "summary": "هذا الخبر يجب أن ينشر مرة واحدة فقط.",
+            "link": "https://example.com/news1"
         }
+    ]
     ]
 
 
@@ -102,4 +118,28 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(published_urls = load_published_urls()
+
+for article in articles:
+
+    link = article["link"]
+
+    if link in published_urls:
+        print(f"⏭️ تم تخطي الخبر المنشور مسبقاً: {link}")
+        continue
+
+    title = article["title"]
+    summary = article["summary"]
+
+    print(f"\nمحاولة نشر: {title}")
+
+    if publish_to_blogger(
+        access_token,
+        title,
+        summary,
+        link
+    ):
+        save_published_url(link)
+        print(f"✅ تم نشر: {title}")
+    else:
+        print(f"❌ فشل نشر: {title}"))
