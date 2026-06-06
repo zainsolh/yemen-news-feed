@@ -19,7 +19,8 @@ HEADERS = {
 # المصادر الموثوقة
 NEWS_SOURCES = [
     {"name": "صحافة نت", "url": "https://sahaafa.net/feed"},
-    {"name": "مأرب برس", "url": "https://marebpress.net/rss.php"}
+    {"name": "مأرب برس", "url": "https://marebpress.net/rss.php"},
+     {"name": "وكالة سبأ", "url": "https://www.sabanew.net/home/viewcategory/rss.php?lang=ar
 ]
 
 def get_google_access_token():
