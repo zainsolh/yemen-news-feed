@@ -98,11 +98,26 @@ def main():
 
     articles = fetch_latest_news()
 
+    if not articles:
+        print("\nℹ️ لا توجد أخبار جديدة للنشر")
+        return
+
+    print(f"\nتم العثور على {len(articles)} خبر")
+
+    # تحميل الروابط المنشورة سابقاً
+    published_urls = load_published_urls()
+
     for article in articles:
 
-        title = article["title"]
-        summary = article["summary"]
-        link = article["link"]
+        link = article.get("link")
+
+        # 🔴 هنا منع التكرار داخل main
+        if link in published_urls:
+            print(f"⏭️ تم تخطي خبر مكرر: {link}")
+            continue
+
+        title = article.get("title", "خبر جديد")
+        summary = article.get("summary", "")
 
         print(f"\nمحاولة نشر: {title}")
 
@@ -113,33 +128,10 @@ def main():
             link
         ):
             print(f"✅ تم نشر: {title}")
+            save_published_url(link)
         else:
             print(f"❌ فشل نشر: {title}")
 
 
 if __name__ == "__main__":
-    main(published_urls = load_published_urls()
-
-for article in articles:
-
-    link = article["link"]
-
-    if link in published_urls:
-        print(f"⏭️ تم تخطي الخبر المنشور مسبقاً: {link}")
-        continue
-
-    title = article["title"]
-    summary = article["summary"]
-
-    print(f"\nمحاولة نشر: {title}")
-
-    if publish_to_blogger(
-        access_token,
-        title,
-        summary,
-        link
-    ):
-        save_published_url(link)
-        print(f"✅ تم نشر: {title}")
-    else:
-        print(f"❌ فشل نشر: {title}"))
+    main()
