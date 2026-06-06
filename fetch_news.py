@@ -1,5 +1,4 @@
 import os
-import feedparser
 import requests
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -9,25 +8,6 @@ BLOG_ID = os.environ.get("BLOG_ID")
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-}
-
-NEWS_SOURCES = [
-    {
-        "name": "صحافة نت",
-        "url": "https://sahaafa.net/feed"
-    },
-    {
-        "name": "مأرب برس",
-        "url": "https://marebpress.net/rss.php"
-    },
-    {
-        "name": "وكالة سبأ",
-        "url": "https://www.sabanew.net/home/viewcategory/rss.php"
-    }
-]
 
 
 def get_google_access_token():
@@ -44,50 +24,15 @@ def get_google_access_token():
 
 
 def fetch_latest_news():
-    print("🛰️ جاري فحص المصادر...")
+    print("🧪 تشغيل اختبار Blogger")
 
-    articles = []
-
-    for source in NEWS_SOURCES:
-        try:
-            print(f"\n{'='*50}")
-            print(f"فحص المصدر: {source['name']}")
-            print(f"الرابط: {source['url']}")
-
-            response = requests.get(
-                source["url"],
-                headers=HEADERS,
-                timeout=20,
-                allow_redirects=True
-            )
-
-            print(f"Status Code: {response.status_code}")
-            print(f"Final URL: {response.url}")
-
-            preview = response.text[:500].replace("\n", " ")
-            print(f"Preview: {preview}")
-
-            feed = feedparser.parse(response.content)
-
-            print(f"عدد العناصر المكتشفة: {len(feed.entries)}")
-
-            if feed.entries:
-                item = feed.entries[0]
-
-                print("✅ تم العثور على خبر:")
-                print(item.get("title", "بدون عنوان"))
-
-                item["source_name"] = source["name"]
-                articles.append(item)
-
-            else:
-                print("⚠️ لم يتم العثور على أي عناصر RSS")
-
-        except Exception as e:
-            print(f"❌ خطأ في {source['name']}")
-            print(str(e))
-
-    return articles
+    return [
+        {
+            "title": "اختبار النشر التلقائي",
+            "summary": "إذا ظهر هذا المنشور في Blogger فمعنى ذلك أن الربط يعمل بنجاح.",
+            "link": "https://example.com"
+        }
+    ]
 
 
 def publish_to_blogger(access_token, title, content, link):
@@ -137,17 +82,11 @@ def main():
 
     articles = fetch_latest_news()
 
-    if not articles:
-        print("\nℹ️ لا توجد أخبار جديدة للنشر")
-        return
-
-    print(f"\nتم العثور على {len(articles)} خبر")
-
     for article in articles:
 
-        title = article.get("title", "خبر جديد")
-        summary = article.get("summary", "")
-        link = article.get("link", "#")
+        title = article["title"]
+        summary = article["summary"]
+        link = article["link"]
 
         print(f"\nمحاولة نشر: {title}")
 
