@@ -132,7 +132,7 @@ articles.append({
     "link": link,
     "source": name
 })
-            })
+        
 
             if len(articles) >= 5:
                 break
