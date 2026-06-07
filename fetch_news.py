@@ -12,6 +12,8 @@ CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
+LOG_FILE = "published_urls.txt"
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 }
@@ -26,6 +28,21 @@ SOURCES = [
     {"name": "صحافة نت", "url": "https://sahaafa.net"},
     {"name": "الهدهد", "url": "https://al-hudhud.net"},
 ]
+
+# =========================
+# إدارة السجل
+# =========================
+def load_published_items():
+    if not os.path.exists(LOG_FILE):
+        return set()
+
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        return set(line.strip() for line in f if line.strip())
+
+
+def save_published_item(item):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(item + "\n")
 
 
 # =========================
@@ -53,7 +70,6 @@ def scrape_site(name, url):
 
         articles = []
 
-        # محاولة عامة لاستخراج الأخبار (تعمل مع أغلب المواقع)
         for item in soup.select("a"):
             title = item.get_text(strip=True)
             link = item.get("href")
@@ -68,9 +84,8 @@ def scrape_site(name, url):
                 link = url.rstrip("/") + link
 
             if name == "سبأ نت":
-                base = "https://www.sabanew.net"
                 if not link.startswith("http"):
-                    link = base + link
+                    link = "https://www.sabanew.net" + link
 
             articles.append({
                 "title": title,
@@ -147,16 +162,39 @@ def main():
         print("❌ لا توجد أخبار")
         return
 
-    for a in articles[:10]:  # حد أقصى للنشر
+    published = load_published_items()
 
-        print("نشر:", a["title"])
+    published_count = 0
 
-        publish_to_blogger(
+    for a in articles:
+
+        title = a["title"].strip()
+        link = a["link"].strip()
+
+        # منع التكرار بالرابط أو العنوان
+        if link in published or title in published:
+            print(f"⏭️ تخطي خبر مكرر: {title}")
+            continue
+
+        print(f"📰 نشر: {title}")
+
+        success = publish_to_blogger(
             token,
-            a["title"],
+            title,
             a["summary"],
-            a["link"]
+            link
         )
+
+        if success:
+            save_published_item(link)
+            save_published_item(title)
+            published.add(link)
+            published.add(title)
+
+            published_count += 1
+
+        if published_count >= 10:
+            break
 
 
 if __name__ == "__main__":
