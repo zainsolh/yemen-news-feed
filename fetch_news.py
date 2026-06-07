@@ -29,6 +29,42 @@ SOURCES = [
     {"name": "الهدهد", "url": "https://al-hudhud.net"},
 ]
 
+def get_article_details(url):
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        soup = BeautifulSoup(r.text, "lxml")
+
+        image = ""
+        description = ""
+
+        og_image = soup.find("meta", property="og:image")
+        if og_image:
+            image = og_image.get("content", "")
+
+        og_desc = soup.find("meta", property="og:description")
+        if og_desc:
+            description = og_desc.get("content", "")
+
+        if not description:
+            p = soup.find("p")
+            if p:
+                description = p.get_text(" ", strip=True)
+
+        description = description[:400]
+
+        return {
+            "image": image,
+            "description": description
+        }
+
+    except Exception as e:
+        print(f"❌ خطأ استخراج تفاصيل الخبر: {e}")
+
+        return {
+            "image": "",
+            "description": ""
+        }
+
 # =========================
 # إدارة السجل
 # =========================
@@ -87,10 +123,15 @@ def scrape_site(name, url):
                 if not link.startswith("http"):
                     link = "https://www.sabanew.net" + link
 
-            articles.append({
-                "title": title,
-                "summary": "",
-                "link": link
+            details = get_article_details(link)
+
+articles.append({
+    "title": title,
+    "summary": details["description"],
+    "image": details["image"],
+    "link": link,
+    "source": name
+})
             })
 
             if len(articles) >= 5:
@@ -125,7 +166,8 @@ def fetch_latest_news():
 # =========================
 # نشر إلى Blogger
 # =========================
-def publish_to_blogger(token, title, content, link):
+def publish_to_blogger(token, title, summary, image, source, link):
+
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
 
     headers = {
@@ -133,16 +175,49 @@ def publish_to_blogger(token, title, content, link):
         "Content-Type": "application/json"
     }
 
+    html = ""
+
+    if image:
+        html += f"""
+        <img src="{image}"
+             alt="{title}"
+             style="max-width:100%;height:auto;">
+        """
+
+    html += f"""
+    <p>{summary}</p>
+
+    <p><strong>المصدر:</strong> {source}</p>
+
+    <p>
+    <a href="{link}"
+       target="_blank"
+       rel="nofollow noopener">
+       "اقرأ الخبر كاملاً من المصدر"
+    </a>
+    </p>
+    
+
     payload = {
         "title": title,
-        "content": f"{content}<br><br><a href='{link}'>المصدر</a>"
+        "content": html,
+        "labels": [
+            source,
+            "أخبار اليمن"
+        ]
     }
 
-    r = requests.post(url, json=payload, headers=headers)
+    r = requests.post(
+        url,
+        json=payload,
+        headers=headers
+    )
 
     print("نشر:", r.status_code)
 
     return r.status_code == 200
+
+    
 
 
 # =========================
@@ -179,10 +254,13 @@ def main():
         print(f"📰 نشر: {title}")
 
         success = publish_to_blogger(
-            token,
-            title,
-            a["summary"],
-            link
+    token,
+    title,
+    a["summary"],
+    a["image"],
+    a["source"],
+    link
+)
         )
 
         if success:
