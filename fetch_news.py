@@ -125,13 +125,13 @@ def scrape_site(name, url):
 
             details = get_article_details(link)
 
-articles.append({
+articles.append(){
     "title": title,
     "summary": details["description"],
     "image": details["image"],
     "link": link,
     "source": name
-})
+}
         
 
             if len(articles) >= 5:
