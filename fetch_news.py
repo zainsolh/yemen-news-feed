@@ -172,13 +172,13 @@ def publish_to_blogger(token, title, summary, image, source, link):
     html = ""
 
     if image:
-    html += f"""
-    <img src="{image}"
-         alt="{title}"
-         style="max-width:100%;height:auto;">
+        html += f"""
+        <img src="{image}"
+             alt="{title}"
+             style="max-width:100%;height:auto;">
 
-    <!--more-->
-    """
+        <!--more-->
+        """
 
     html += f"""
 <p>{summary}</p>
