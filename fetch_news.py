@@ -120,8 +120,7 @@ def scrape_site(name, url):
                 if not link.startswith("http"):
                     link = "https://www.sabanew.net" + link
 
-            details = get_article_details(link)
-
+        
 details = get_article_details(link)
 
 articles.append({
@@ -184,18 +183,18 @@ def publish_to_blogger(token, title, summary, image, source, link):
         """
 
     html += f"""
-    <p>{summary}</p>
+<p>{summary}</p>
 
-    <p><strong>المصدر:</strong> {source}</p>
+<p><strong>المصدر:</strong> {source}</p>
 
-    <p>
-    <a href="{link}"
-       target="_blank"
-       rel="nofollow noopener">
-       "اقرأ الخبر كاملاً من المصدر"
-    </a>
-    </p>
-    
+<p>
+<a href="{link}"
+   target="_blank"
+   rel="nofollow noopener">
+   اقرأ الخبر كاملاً من المصدر
+</a>
+</p>
+"""
 
     payload = {
         "title": title,
