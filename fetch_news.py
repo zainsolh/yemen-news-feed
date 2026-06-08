@@ -38,28 +38,25 @@ def get_article_details(url):
         description = ""
 
         og_image = soup.find("meta", property="og:image")
-        if og_image:
-            image = og_image.get("content", "")
+        if og_image and og_image.get("content"):
+            image = og_image.get("content")
 
         og_desc = soup.find("meta", property="og:description")
-        if og_desc:
-            description = og_desc.get("content", "")
+        if og_desc and og_desc.get("content"):
+            description = og_desc.get("content")
 
         if not description:
             p = soup.find("p")
             if p:
                 description = p.get_text(" ", strip=True)
 
-        description = description[:400]
-
         return {
             "image": image,
-            "description": description
+            "description": description[:400]
         }
 
     except Exception as e:
         print(f"❌ خطأ استخراج تفاصيل الخبر: {e}")
-
         return {
             "image": "",
             "description": ""
