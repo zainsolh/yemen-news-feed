@@ -177,7 +177,7 @@ def publish_to_blogger(token, title, summary, image, source, link):
          alt="{title}"
          style="max-width:100%;height:auto;">
 
-    <span><!--more--></span>
+    <!--more-->
     """
 
     html += f"""
