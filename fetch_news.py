@@ -102,42 +102,48 @@ def scrape_site(name, url):
         soup = BeautifulSoup(r.text, "lxml")
 
         articles = []
+def scrape_site(name, url):
+try:
+r = requests.get(url, headers=HEADERS, timeout=20)
+soup = BeautifulSoup(r.text, "lxml")
 
-        for item in soup.select("a"):
-            title = item.get_text(strip=True)
-            link = item.get("href")
+    articles = []
 
-            if not title or not link:
-                continue
+    for item in soup.select("a"):
+        title = item.get_text(strip=True)
+        link = item.get("href")
 
-            if len(title) < 15:
-                continue
+        if not title or not link:
+            continue
 
-            if link.startswith("/"):
-                link = url.rstrip("/") + link
+        if len(title) < 15:
+            continue
 
-            if name == "سبأ نت":
-    if not link.startswith("http"):
-        link = "https://www.sabanew.net" + link
+        if link.startswith("/"):
+            link = url.rstrip("/") + link
 
-details = get_article_details(link)
+        if name == "سبأ نت":
+            if not link.startswith("http"):
+                link = "https://www.sabanew.net" + link
 
-articles.append({
-    "title": title,
-    "summary": details["description"],
-    "image": details["image"],
-    "link": link,
-    "source": name
-})
+        details = get_article_details(link)
 
-if len(articles) >= 5:
-    break
-        return articles
+        articles.append({
+            "title": title,
+            "summary": details["description"],
+            "image": details["image"],
+            "link": link,
+            "source": name
+        })
 
-    except Exception as e:
-        print(f"❌ خطأ في {name}: {e}")
-        return []
+        if len(articles) >= 5:
+            break
 
+    return articles
+
+except Exception as e:
+    print(f"❌ خطأ في {name}: {e}")
+    return []
 
 def fetch_latest_news():
     print("🛰️ بدء جلب الأخبار من المواقع...")
