@@ -117,10 +117,9 @@ def scrape_site(name, url):
                 link = url.rstrip("/") + link
 
             if name == "سبأ نت":
-                if not link.startswith("http"):
-                    link = "https://www.sabanew.net" + link
+    if not link.startswith("http"):
+        link = "https://www.sabanew.net" + link
 
-        
 details = get_article_details(link)
 
 articles.append({
@@ -130,11 +129,9 @@ articles.append({
     "link": link,
     "source": name
 })
-        
 
-            if len(articles) >= 5:
-                break
-
+if len(articles) >= 5:
+    break
         return articles
 
     except Exception as e:
@@ -259,7 +256,7 @@ def main():
     a["source"],
     link
 )
-        )
+        
 
         if success:
             save_published_item(link)
