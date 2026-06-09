@@ -35,6 +35,7 @@ SOURCES = [
     {"name": "الأحرار نت", "url": "http://www.al-ahrar.net/"},
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
+    {"name": "ArabNN", "url": "https://www.kooora.com/?n=0&rss=1"},
 
     { "name": "bin sport", "url":  "https://www.beinsports.com/ar/rss"},
 
