@@ -111,11 +111,12 @@ def scrape_site(name, url):
         soup = BeautifulSoup(r.text, "lxml")
 
         articles = []
-        if name == "beIN Sports":
-    print("عدد الروابط:", len(soup.find_all("a")))
 
-    for a in soup.find_all("a")[:20]:
-        print(a.get("href"))
+        if name == "beIN Sports":
+            print("عدد الروابط:", len(soup.find_all("a")))
+
+            for a in soup.find_all("a")[:20]:
+                print(a.get("href"))
 
         for item in soup.select("a"):
             title = item.get_text(strip=True)
