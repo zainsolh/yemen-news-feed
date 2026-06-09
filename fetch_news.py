@@ -111,21 +111,19 @@ def scrape_site(name, url):
 
         articles = []
 
-        from urllib.parse import urljoin
+        for item in soup.select("a"):
+            title = item.get_text(strip=True)
+            link = item.get("href")
 
-for item in soup.select("a"):
-    title = item.get_text(strip=True)
-    link = item.get("href")
+            if not title or not link:
+                continue
 
-    if not title or not link:
-        continue
+            # تجاهل الروابط الفارغة
+            if link == "#" or link.startswith("javascript"):
+                continue
 
-    # تجاهل الروابط الفارغة
-    if link == "#" or link.startswith("javascript"):
-        continue
-
-    # تحويل الروابط النسبية إلى روابط كاملة
-    link = urljoin(url, link)
+            # تحويل الروابط النسبية إلى روابط كاملة
+            link = urljoin(url, link)
 
             if len(title) < 15:
                 continue
@@ -154,7 +152,6 @@ for item in soup.select("a"):
     except Exception as e:
         print(f"❌ خطأ في {name}: {e}")
         return []
-
 def fetch_latest_news():
     print("🛰️ بدء جلب الأخبار من المواقع...")
 
