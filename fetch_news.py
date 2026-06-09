@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from urllib.parse import urljoin
 
 # =========================
 # إعدادات Blogger
@@ -110,12 +111,21 @@ def scrape_site(name, url):
 
         articles = []
 
-        for item in soup.select("a"):
-            title = item.get_text(strip=True)
-            link = item.get("href")
+        from urllib.parse import urljoin
 
-            if not title or not link:
-                continue
+for item in soup.select("a"):
+    title = item.get_text(strip=True)
+    link = item.get("href")
+
+    if not title or not link:
+        continue
+
+    # تجاهل الروابط الفارغة
+    if link == "#" or link.startswith("javascript"):
+        continue
+
+    # تحويل الروابط النسبية إلى روابط كاملة
+    link = urljoin(url, link)
 
             if len(title) < 15:
                 continue
