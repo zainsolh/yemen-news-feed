@@ -27,6 +27,13 @@ SOURCES = [
     {"name": "عدن الغد", "url": "https://www.adngad.net"},
     {"name": "صحافة نت", "url": "https://sahaafa.net"},
     {"name": "الهدهد", "url": "https://al-hudhud.net"},
+    
+    {"name": "24 بوست", "url": "http://www.24-post.com/"},
+
+    {"name": "أنباء عدن", "url": "http://www.anbaaden.net/"},
+    {"name": "الأحرار نت", "url": "http://www.al-ahrar.net/"},
+    {"name": "الساحل", "url": "http://www.alsahil.net/"},
+    {"name": "ArabNN", "url": "http://www.arabnn.news/"}
 ]
 
 def get_article_details(url):
