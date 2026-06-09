@@ -141,7 +141,15 @@ def scrape_site(name, url):
 
             # تحويل الروابط النسبية إلى روابط كاملة
             link = urljoin(url, link)
+            if name == "beIN Sports":
 
+    # نأخذ فقط روابط المقالات
+               if "/article/" not in link:
+                  continue
+  
+    # تجاهل صفحة about
+               if "about-this-website" in link:
+                   continue
             if len(title) < 15:
                 continue
 
