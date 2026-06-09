@@ -113,10 +113,20 @@ def scrape_site(name, url):
         articles = []
 
         if name == "beIN Sports":
-            print("عدد الروابط:", len(soup.find_all("a")))
+           print("عدد الروابط:", len(soup.find_all("a")))
 
-            for a in soup.find_all("a")[:20]:
-                print(a.get("href"))
+        count = 0
+
+        for a in soup.find_all("a"):
+            href = a.get("href")
+
+            if href:
+               print(href)
+
+            count += 1
+
+            if count >= 100:
+                break
 
         for item in soup.select("a"):
             title = item.get_text(strip=True)
