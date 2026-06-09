@@ -35,6 +35,12 @@ SOURCES = [
     {"name": "الأحرار نت", "url": "http://www.al-ahrar.net/"},
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
+
+    { "name": "Goal Arabic", "url":  "https://www.goal.com/feeds/ar/news"},
+
+    {"name": "WinWin", "url": "https://www.winwin.com/rss"},
+
+    {"name": "Sky News Arabia Sport", "url": "https://www.skynewsarabia.com/rss/sport"},
     {"name": "beIN Sports", "url": "https://www.beinsports.com/ar-mena"}
 ]
 
@@ -112,21 +118,6 @@ def scrape_site(name, url):
 
         articles = []
 
-        if name == "beIN Sports":
-           print("عدد الروابط:", len(soup.find_all("a")))
-
-           count = 0
-
-           for a in soup.find_all("a"):
-               href = a.get("href")
-
-               if href:
-                  print(href)
-
-                  count += 1
-
-                  if count >= 100:
-                     break
 
         for item in soup.select("a"):
             title = item.get_text(strip=True)
@@ -141,11 +132,7 @@ def scrape_site(name, url):
 
             # تحويل الروابط النسبية إلى روابط كاملة
             link = urljoin(url, link)
-            if name == "beIN Sports":
-
-    # نأخذ فقط روابط المقالات
-               if "/article/" not in link:
-                  continue
+            
   
     # تجاهل صفحة about
                if "about-this-website" in link:
