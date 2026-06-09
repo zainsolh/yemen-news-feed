@@ -36,13 +36,9 @@ SOURCES = [
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
 
-    { "name": "Goal Arabic", "url":  "https://www.goal.com/feeds/ar/news"},
+    { "name": "bin sport", "url":  "https://www.beinsports.com/ar-mena/جميع-الأخبار"},
 
-    {"name": "WinWin", "url": "https://www.winwin.com/rss"},
-
-    {"name": "Sky News Arabia Sport", "url": "https://www.skynewsarabia.com/rss/sport"},
-    {"name": "beIN Sports", "url": "https://www.beinsports.com/ar-mena"}
-]
+    ]
 
 def get_article_details(url):
     try:
