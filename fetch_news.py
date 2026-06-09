@@ -135,8 +135,7 @@ def scrape_site(name, url):
             
   
     # تجاهل صفحة about
-               if "about-this-website" in link:
-                   continue
+               
             if len(title) < 15:
                 continue
 
