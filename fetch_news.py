@@ -36,7 +36,7 @@ SOURCES = [
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
 
-    { "name": "bin sport", "url":  "https://www.beinsports.com/ar-mena/جميع-الأخبار"},
+    { "name": "bin sport", "url":  "https://www.beinsports.com/ar/rss"},
 
     ]
 
