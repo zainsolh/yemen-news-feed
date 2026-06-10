@@ -130,6 +130,20 @@ def scrape_site(name, url):
 
         for item in links:
             title = item.get_text(strip=True)
+            # تجاهل الأقسام والقوائم
+            if "#news" in str(link):
+                continue
+
+            if "/video" in str(link):
+                continue
+
+            if "/shorts" in str(link):
+                continue
+
+# أخبار beIN الحقيقية تحتوي article
+            if "beinsports.com" in url:
+                if "/article/" not in str(link):
+                    continue
             link = item.get("href")
 
         for item in soup.select("a"):
