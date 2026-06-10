@@ -124,10 +124,10 @@ def scrape_site(name, url):
               timeout=30)
     
 
-              print("Status:", response.status_code)
-              print("Final URL:", response.url)
-              print("Content Type:", response.headers.get("content-type"))
-              print(response.text[:1000])
+               print("Status:", response.status_code)
+               print("Final URL:", response.url)
+               print("Content Type:", response.headers.get("content-type"))
+               print(response.text[:1000])
 
     return []
 
