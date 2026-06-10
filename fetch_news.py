@@ -114,6 +114,22 @@ def scrape_site(name, url):
         soup = BeautifulSoup(r.text, "lxml")
 
         articles = []
+        def fetch_latest_news():
+
+            url = "https://www.beinsports.com/ar/rss"
+
+            response = requests.get(
+              url,
+              headers={"User-Agent": "Mozilla/5.0"},
+              timeout=30)
+    
+
+              print("Status:", response.status_code)
+              print("Final URL:", response.url)
+              print("Content Type:", response.headers.get("content-type"))
+              print(response.text[:1000])
+
+    return []
 
 
         for item in soup.select("a"):
