@@ -120,6 +120,11 @@ def scrape_site(name, url):
 # تخصيص روابط beIN فقط
         if "beinsports.com" in url:
             links = soup.select("a[href*='/ar-mena/']")
+            print(f"عدد روابط beIN: {len(links)}")
+
+            for x in links[:20]:
+               print("LINK:", x.get("href"))
+               print("TEXT:", x.get_text(strip=True))
         else:
             links = soup.select("a")
 
