@@ -112,24 +112,41 @@ def scrape_site(name, url):
     try:
         r = requests.get(url, headers=HEADERS, timeout=20)
 
+
         soup = BeautifulSoup(r.text, "lxml")
 
         articles = []
 
-        # تخصيص beIN
+# تخصيص روابط beIN فقط
         if "beinsports.com" in url:
             links = soup.select("a[href*='/ar-mena/']")
-
             print(f"عدد روابط beIN: {len(links)}")
 
             for x in links[:20]:
-                print("LINK:", x.get("href"))
-                print("TEXT:", x.get_text(strip=True))
+               print("LINK:", x.get("href"))
+               print("TEXT:", x.get_text(strip=True))
         else:
             links = soup.select("a")
 
         for item in links:
+            title = item.get_text(strip=True)
+            # تجاهل الأقسام والقوائم
+            if "#news" in str(link):
+                continue
 
+            if "/video" in str(link):
+                continue
+
+            if "/shorts" in str(link):
+                continue
+
+# أخبار beIN الحقيقية تحتوي article
+            if "beinsports.com" in url:
+                if "/article/" not in str(link):
+                    continue
+            link = item.get("href")
+
+        for item in soup.select("a"):
             title = item.get_text(strip=True)
             link = item.get("href")
 
@@ -140,29 +157,20 @@ def scrape_site(name, url):
             if link == "#" or link.startswith("javascript"):
                 continue
 
-            # فلترة خاصة بـ beIN
-            if "beinsports.com" in url:
-
-                if "#news" in link:
-                    continue
-
-                if "/video" in link:
-                    continue
-
-                if "/shorts" in link:
-                    continue
-
-                if "/article/" not in link:
-                    continue
-
-            # تحويل الرابط إلى رابط كامل
+            # تحويل الروابط النسبية إلى روابط كاملة
             link = urljoin(url, link)
-
+            
+  
+    # تجاهل صفحة about
+               
             if len(title) < 15:
                 continue
 
-            print("خبر محتمل:", title)
-            print("الرابط:", link)
+            if link.startswith("/"):
+                link = url.rstrip("/") + link
+
+            if name == "سبأ نت" and not link.startswith("http"):
+                link = "https://www.sabanew.net" + link
 
             details = get_article_details(link)
 
@@ -182,6 +190,23 @@ def scrape_site(name, url):
     except Exception as e:
         print(f"❌ خطأ في {name}: {e}")
         return []
+def fetch_latest_news():
+    print("🛰️ بدء جلب الأخبار من المواقع...")
+
+    all_articles = []
+
+    for source in SOURCES:
+        print(f"\n=== {source['name']} ===")
+
+        items = scrape_site(source["name"], source["url"])
+
+        if items:
+            print(f"✅ تم جلب {len(items)} أخبار")
+            all_articles.extend(items)
+        else:
+            print("⚠️ لم يتم العثور على أخبار")
+
+    return all_articles
 
 
 # =========================
