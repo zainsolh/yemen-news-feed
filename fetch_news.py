@@ -168,8 +168,8 @@ def scrape_site(name, url):
 
           #  if link.startswith("/"):
              #   link = url.rstrip("/") + link
-             if link.startswith("/"):
-                link = "https://www.beinsports.com" + link
+            if link.startswith("/"):
+               link = "https://www.beinsports.com" + link
 
             if name == "سبأ نت" and not link.startswith("http"):
                 link = "https://www.sabanew.net" + link
