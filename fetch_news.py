@@ -35,7 +35,7 @@ SOURCES = [
     {"name": "الأحرار نت", "url": "http://www.al-ahrar.net/"},
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
-    {"name": "ArabNN", "url": "https://www.kooora.com/?n=0&rss=1"},
+    {"name": "Arabkoora", "url": "https://www.kooora.com/?n=0&rss=1"},
 
     { "name": "bin sport", "url":  "https://www.beinsports.com/ar-mena"},
 
@@ -112,17 +112,20 @@ def scrape_site(name, url):
     try:
         r = requests.get(url, headers=HEADERS, timeout=20)
 
-        print(f"فحص المصدر: {name}")
-        print(f"https://www.beinsports.com/ar-mena: {url}")
-        print("Status:", r.status_code)
-        print("Content-Type:", r.headers.get("content-type"))
-        print(r.text[:500])
-
 
         soup = BeautifulSoup(r.text, "lxml")
 
         articles = []
-        
+
+# تخصيص روابط beIN فقط
+        if "beinsports.com" in url:
+            links = soup.select("a[href*='/ar-mena/']")
+        else:
+            links = soup.select("a")
+
+        for item in links:
+            title = item.get_text(strip=True)
+            link = item.get("href")
 
         for item in soup.select("a"):
             title = item.get_text(strip=True)
