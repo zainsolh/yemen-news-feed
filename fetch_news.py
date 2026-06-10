@@ -166,11 +166,16 @@ def scrape_site(name, url):
             if len(title) < 15:
                 continue
 
-            if link.startswith("/"):
-                link = url.rstrip("/") + link
+          #  if link.startswith("/"):
+             #   link = url.rstrip("/") + link
+             if link.startswith("/"):
+                link = "https://www.beinsports.com" + link
 
             if name == "سبأ نت" and not link.startswith("http"):
                 link = "https://www.sabanew.net" + link
+
+            print("خبر محتمل:", title)
+            print("الرابط:", link)
 
             details = get_article_details(link)
 
