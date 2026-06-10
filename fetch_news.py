@@ -37,7 +37,7 @@ SOURCES = [
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
     {"name": "ArabNN", "url": "https://www.kooora.com/?n=0&rss=1"},
 
-    { "name": "bin sport", "url":  "https://www.beinsports.com/ar/rss"},
+    { "name": "bin sport", "url":  "https://www.beinsports.com/ar-mena"},
 
     ]
 
@@ -111,26 +111,18 @@ def get_google_access_token():
 def scrape_site(name, url):
     try:
         r = requests.get(url, headers=HEADERS, timeout=20)
+
+        print(f"فحص المصدر: {name}")
+        print(f"https://www.beinsports.com/ar-mena: {url}")
+        print("Status:", r.status_code)
+        print("Content-Type:", r.headers.get("content-type"))
+        print(r.text[:500])
+
+
         soup = BeautifulSoup(r.text, "lxml")
 
         articles = []
-        def fetch_latest_news():
-
-            url = "https://www.beinsports.com/ar/rss"
-
-            response = requests.get(
-              url,
-              headers={"User-Agent": "Mozilla/5.0"},
-              timeout=30)
-    
-
-               print("Status:", response.status_code)
-               print("Final URL:", response.url)
-               print("Content Type:", response.headers.get("content-type"))
-               print(response.text[:1000])
-
-    return []
-
+        
 
         for item in soup.select("a"):
             title = item.get_text(strip=True)
