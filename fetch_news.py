@@ -1,6 +1,7 @@
 import os
 import sys
-import re  # تم إضافتها لفحص النصوص وتنظيف العناوين واللغات
+import re
+import time  # تم إضافتها لعمل فاصل زمني وتفادي الحظر 429
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -23,7 +24,6 @@ REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
 LOG_FILE = "published_urls.txt"
 
-# إنشاء كائن السحب الذكي الذي يحاكي متصفحاً حقيقياً تلقائياً
 scraper = cloudscraper.create_scraper(
     browser={
         'browser': 'chrome',
@@ -50,12 +50,8 @@ SOURCES = [
     {"name": "bin sport", "url": "https://www.beinsports.com/ar-mena/"} 
 ]
 
-# ====================================================
-# دالتان ذكيتان لتنظيف العناوين وفحص اتجاه اللغة
-# ====================================================
 def clean_title(title):
     title = title.strip()
-    # إزالة الكلمات الملتصقة المكررة مثل CupCup لتصبح Cup
     title = re.sub(r'\b(\w+)\1\b', r'\1', title)
     title = " ".join(title.split())
     return title
@@ -63,7 +59,6 @@ def clean_title(title):
 def is_english(text):
     if not text:
         return False
-    # فحص إذا كانت الحروف الإنجليزية تشكل النسبة الأكبر من النص
     english_chars = len(re.findall(r'[a-zA-Z]', text))
     total_chars = len(re.findall(r'[\w]', text))
     if total_chars == 0:
@@ -71,7 +66,7 @@ def is_english(text):
     return (english_chars / total_chars) > 0.5
 
 # =========================
-# استخراج تفاصيل الخبر (الصورة والوصف)
+# استخراج تفاصيل الخبر
 # =========================
 def get_article_details(url):
     try:
@@ -98,13 +93,12 @@ def get_article_details(url):
             "image": image,
             "description": description[:400]
         }
-
     except Exception as e:
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
         return {"image": "", "description": ""}
 
 # =========================
-# إدارة السجل (منع التكرار)
+# إدارة السجل
 # =========================
 def load_published_items():
     if not os.path.exists(LOG_FILE):
@@ -132,7 +126,7 @@ def get_google_access_token():
     return creds.token
 
 # =========================
-# استخراج الأخبار الذكي والمطور
+# استخراج الأخبار الذكي
 # =========================
 def scrape_site(name, url):
     try:
@@ -154,14 +148,11 @@ def scrape_site(name, url):
                 title_text = title_tag.get_text(strip=True)
                 link_text = link_tag.get_text(strip=True).strip()
 
-                # تنظيف وتنقية العنوان المجلوب من الـ RSS
                 title_text = clean_title(title_text)
-
                 if len(title_text) < 15:
                     continue
 
                 details = get_article_details(link_text)
-                
                 articles.append({
                     "title": title_text,
                     "summary": details["description"],
@@ -180,10 +171,12 @@ def scrape_site(name, url):
                 if not title or not link or len(title) < 15:
                     continue
 
-                # تنظيف العنوان المجلوب من الـ HTML
                 title = clean_title(title)
 
-                if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content"]):
+                # تصفية الروابط الثابتة والصفحات غير الإخبارية (خصوصاً لموقع beIN)
+                if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content", "faq", "ترددات", "الأسئلة"]):
+                    continue
+                if any(x in title for x in ["الأسئلة الأكثر شيوعاً", "ترددات beIN", "beIN MEDIA GROUP"]):
                     continue
 
                 link = urljoin(url, link)
@@ -199,9 +192,7 @@ def scrape_site(name, url):
 
                 if len(articles) >= 5:
                     break
-
         return articles
-
     except Exception as e:
         print(f"❌ خطأ في سحب موقع {name}: {e}")
         return []
@@ -209,22 +200,19 @@ def scrape_site(name, url):
 def fetch_latest_news():
     print("🛰️ بدء جلب الأخبار من المواقع...")
     all_articles = []
-
     for source in SOURCES:
         print(f"\n=== جاري الفحص: {source['name']} ===")
         items = scrape_site(source["name"], source["url"])
-
         if items:
             print(f"✅ تم جلب {len(items)} أخبار بنجاح")
             all_articles.extend(items)
         else:
             print(f"⚠️ لم يتم العثور على أخبار أو فشل السحب")
-
     return all_articles
 
-# ====================================================
-# دالة النشر المحدثة: التنسيق، واللغة، وفاصل اقرأ المزيد
-# ====================================================
+# =========================
+# نشر إلى Blogger
+# =========================
 def publish_to_blogger(token, title, summary, image, source, link):
     import requests
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
@@ -233,7 +221,6 @@ def publish_to_blogger(token, title, summary, image, source, link):
         "Content-Type": "application/json"
     }
 
-    # تحديد اتجاه المتن والمحاذاة ديناميكياً لتفادي تشتت الكلمات والترقيم
     if is_english(summary):
         direction = "ltr"
         align = "left"
@@ -241,17 +228,11 @@ def publish_to_blogger(token, title, summary, image, source, link):
         direction = "rtl"
         align = "right"
 
-    # بناء هيكل المقال بترتيب منظم جداً
     html = ""
-    
-    # 1. وضع الصورة أولاً بأعلى المقال (إن وجدت)
     if image:
         html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>'
 
-    # 2. وضع فاصل القراءة (Read More) هنا مباشرة بعد الصورة لتصفية الصفحة الرئيسية
     html += ""
-
-    # 3. محتوى المقال الداخلي الذي سيظهر داخل المشاركة فقط عند الضغط عليها
     html += f"""
     <p dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.6;">{summary}</p>
     <hr>
@@ -272,6 +253,11 @@ def publish_to_blogger(token, title, summary, image, source, link):
     try:
         r = requests.post(url, json=payload, headers=headers)
         print(f"بيان النشر للمقالة [{title[:20]}...]: {r.status_code}")
+        
+        # إذا واجهنا خطأ الحظر، نخبر المستخدم في المخرجات
+        if r.status_code == 429:
+            print("⚠️ تنبيه: تم تجاوز الحد المسموح به من جوجل (Rate Limit).")
+            
         return r.status_code == 200
     except Exception as e:
         print(f"❌ خطأ أثناء الاتصال بـ Blogger API: {e}")
@@ -292,7 +278,6 @@ def main():
         return
 
     articles = fetch_latest_news()
-
     if not articles:
         print("❌ لا توجد أخبار جديدة للتعامل معها.")
         return
@@ -317,6 +302,14 @@ def main():
             published.add(link)
             published.add(title)
             published_count += 1
+            
+            # ⏰ إضافة فاصل زمني (10 ثوانٍ) بعد كل عملية نشر ناجحة لتجنب حظر الـ API (429)
+            print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
+            time.sleep(10)
+        else:
+            # إذا فشل بسبب خطأ 429، ننتظر فترة أطول (30 ثانية) كمحاولة لتخفيف الضغط عن السيرفر
+            print("⏳ فشل النشر، الانتظار 30 ثانية لتخفيف الضغط...")
+            time.sleep(30)
 
         if published_count >= 10:
             print("🚀 تم الوصول للحد الأقصى للنشر في هذه الدورة (10 أخبار).")
