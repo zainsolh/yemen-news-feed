@@ -1,7 +1,7 @@
 import os
 import sys
 import re
-import time  # تم إضافتها لعمل فاصل زمني وتفادي الحظر 429
+import time
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -14,9 +14,9 @@ except ImportError:
     print("⚠️ مكتبة cloudscraper غير مثبتة! يرجى تثبيتها عبر الأمر: pip install cloudscraper")
     sys.exit(1)
 
-# =========================
-# إعدادات Blogger
-# =========================
+# ==========================================
+# إعدادات ومتغيرات البيئة لمنصة Blogger
+# ==========================================
 BLOG_ID = os.environ.get("BLOG_ID")
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -24,6 +24,7 @@ REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
 LOG_FILE = "published_urls.txt"
 
+# إنشاء كائن متصفح افتراضي ذكي لتجنب حظر المواقع
 scraper = cloudscraper.create_scraper(
     browser={
         'browser': 'chrome',
@@ -32,9 +33,9 @@ scraper = cloudscraper.create_scraper(
     }
 )
 
-# =========================
-# قائمة المواقع
-# =========================
+# ==========================================
+# قائمة المصادر والمواقع المستهدفة
+# ==========================================
 SOURCES = [
     {"name": "سبأ نت", "url": "https://www.sabanew.net"},
     {"name": "المشهد اليمني", "url": "https://www.almashhad.news/rss.php"}, 
@@ -50,12 +51,21 @@ SOURCES = [
     {"name": "bin sport", "url": "https://www.beinsports.com/ar-mena/"} 
 ]
 
+# ==========================================
+# دالة تنظيف العناوين وفصل الكلمات الملتصقة
+# ==========================================
 def clean_title(title):
     title = title.strip()
+    # فصل العلامة التجارية عن بداية الكلام (مثل 2026™المغرب تصبح 2026™ المغرب)
+    title = re.sub(r'(™)([\u0600-\u06FF\w])', r'\1 \2', title)
+    # إزالة تكرار العناوين المتطابقة الملتصقة ببعضها
+    if "كأس العالم FIFA 2026™كأس العالم FIFA 2026™" in title:
+        title = title.replace("كأس allocation FIFA 2026™كأس العالم FIFA 2026™", "كأس العالم FIFA 2026™")
     title = re.sub(r'\b(\w+)\1\b', r'\1', title)
     title = " ".join(title.split())
     return title
 
+# دالة فحص لغة النص لتحديد الاتجاه المناسب للكتابة
 def is_english(text):
     if not text:
         return False
@@ -65,9 +75,9 @@ def is_english(text):
         return False
     return (english_chars / total_chars) > 0.5
 
-# =========================
-# استخراج تفاصيل الخبر
-# =========================
+# ==========================================
+# دالة استخراج تفاصيل المقال (الوصف والصورة)
+# ==========================================
 def get_article_details(url):
     try:
         r = scraper.get(url, timeout=20)
@@ -97,9 +107,9 @@ def get_article_details(url):
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
         return {"image": "", "description": ""}
 
-# =========================
-# إدارة السجل
-# =========================
+# ==========================================
+# دالات إدارة السجل لمنع تكرار النشر
+# ==========================================
 def load_published_items():
     if not os.path.exists(LOG_FILE):
         return set()
@@ -110,9 +120,7 @@ def save_published_item(item):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(item + "\n")
 
-# =========================
-# جلب Google Token
-# =========================
+# جلب رمز الوصول المحدث من جوجل لعمل الـ API
 def get_google_access_token():
     import requests
     creds = Credentials(
@@ -125,9 +133,9 @@ def get_google_access_token():
     creds.refresh(Request())
     return creds.token
 
-# =========================
-# استخراج الأخبار الذكي
-# =========================
+# ==========================================
+# دالة سحب وجلب البيانات من المواقع
+# ==========================================
 def scrape_site(name, url):
     try:
         r = scraper.get(url, timeout=20)
@@ -173,7 +181,7 @@ def scrape_site(name, url):
 
                 title = clean_title(title)
 
-                # تصفية الروابط الثابتة والصفحات غير الإخبارية (خصوصاً لموقع beIN)
+                # تصفية الصفحات والروابط غير الإخبارية الثابتة
                 if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content", "faq", "ترددات", "الأسئلة"]):
                     continue
                 if any(x in title for x in ["الأسئلة الأكثر شيوعاً", "ترددات beIN", "beIN MEDIA GROUP"]):
@@ -207,12 +215,12 @@ def fetch_latest_news():
             print(f"✅ تم جلب {len(items)} أخبار بنجاح")
             all_articles.extend(items)
         else:
-            print(f"⚠️ لم يتم العثور على أخبار أو فشل السحب")
+            print("⚠️ لم يتم العثور على أخبار أو فشل السحب")
     return all_articles
 
-# =========================
-# نشر إلى Blogger
-# =========================
+# ====================================================
+# دالة النشر المطورة: حل مشكلة التسميات وفاصل القراءة الحتمي
+# ====================================================
 def publish_to_blogger(token, title, summary, image, source, link):
     import requests
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
@@ -221,6 +229,7 @@ def publish_to_blogger(token, title, summary, image, source, link):
         "Content-Type": "application/json"
     }
 
+    # تحديد اتجاه الكتابة حسب لغة النص المجلوب
     if is_english(summary):
         direction = "ltr"
         align = "left"
@@ -228,11 +237,15 @@ def publish_to_blogger(token, title, summary, image, source, link):
         direction = "rtl"
         align = "right"
 
+    # بناء كود الـ HTML مع فصل أمر القطع برمجياً بأسطر جديدة \n لضمان استجابة قالب بلوجر له
     html = ""
     if image:
-        html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>'
+        html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>\n'
 
-    html += ""
+    # وضع الفاصل البرمجي الحتمي في سطر منفصل تماماً ومستقل
+    html += "\n<!--more-->\n"
+    
+    # بقية محتوى المقال الداخلي
     html += f"""
     <p dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.6;">{summary}</p>
     <hr>
@@ -244,28 +257,33 @@ def publish_to_blogger(token, title, summary, image, source, link):
     </p>
     """
 
+    # --- إعداد وإضافة التصنيفات (Labels) ديناميكياً ---
+    # بشكل افتراضي، تندرج الأخبار تحت اسم المصدر وتصنيف العام
+    post_labels = [source, "أخبار اليمن"]
+    
+    # الفحص الشرطي الذكي: إذا كان الخبر رياضياً، نضيف تصنيف "رياضة" فوراً ليظهر في القسم المخصص له بمدونتك
+    if source in ["bin sport", "Arabkoora"]:
+        post_labels.append("رياضة")
+
     payload = {
         "title": title,
         "content": html,
-        "labels": [source, "أخبار اليمن"]
+        "labels": post_labels
     }
 
     try:
         r = requests.post(url, json=payload, headers=headers)
         print(f"بيان النشر للمقالة [{title[:20]}...]: {r.status_code}")
-        
-        # إذا واجهنا خطأ الحظر، نخبر المستخدم في المخرجات
         if r.status_code == 429:
             print("⚠️ تنبيه: تم تجاوز الحد المسموح به من جوجل (Rate Limit).")
-            
         return r.status_code == 200
     except Exception as e:
         print(f"❌ خطأ أثناء الاتصال بـ Blogger API: {e}")
         return False
 
-# =========================
-# الدالة الرئيسية
-# =========================
+# ==========================================
+# الدالة الرئيسية لتشغيل السكريبت كاملاً
+# ==========================================
 def main():
     if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
         print("❌ خطأ: بعض متغيرات البيئة (Secrets) مفقودة!")
@@ -303,11 +321,9 @@ def main():
             published.add(title)
             published_count += 1
             
-            # ⏰ إضافة فاصل زمني (10 ثوانٍ) بعد كل عملية نشر ناجحة لتجنب حظر الـ API (429)
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
             time.sleep(10)
         else:
-            # إذا فشل بسبب خطأ 429، ننتظر فترة أطول (30 ثانية) كمحاولة لتخفيف الضغط عن السيرفر
             print("⏳ فشل النشر، الانتظار 30 ثانية لتخفيف الضغط...")
             time.sleep(30)
 
