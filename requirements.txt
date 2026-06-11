@@ -6,3 +6,4 @@ feedparser
 beautifulsoup4
 lxml
 trafilatura
+cloudscraper>=1.2.71
