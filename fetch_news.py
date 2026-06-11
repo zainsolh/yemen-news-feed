@@ -1,5 +1,6 @@
 import os
 import sys
+import re  # تم إضافتها لفحص النصوص وتنظيف العناوين واللغات
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -46,16 +47,34 @@ SOURCES = [
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
     {"name": "Arabkoora", "url": "http://www.arabkoora.com/"},
-    # قم بتحديث رابط موقع bin sport هنا بالرابط الصحيح إذا كان يعمل لديك في المتصفح
     {"name": "bin sport", "url": "https://www.beinsports.com/ar-mena/"} 
 ]
+
+# ====================================================
+# دالتان ذكيتان لتنظيف العناوين وفحص اتجاه اللغة
+# ====================================================
+def clean_title(title):
+    title = title.strip()
+    # إزالة الكلمات الملتصقة المكررة مثل CupCup لتصبح Cup
+    title = re.sub(r'\b(\w+)\1\b', r'\1', title)
+    title = " ".join(title.split())
+    return title
+
+def is_english(text):
+    if not text:
+        return False
+    # فحص إذا كانت الحروف الإنجليزية تشكل النسبة الأكبر من النص
+    english_chars = len(re.findall(r'[a-zA-Z]', text))
+    total_chars = len(re.findall(r'[\w]', text))
+    if total_chars == 0:
+        return False
+    return (english_chars / total_chars) > 0.5
 
 # =========================
 # استخراج تفاصيل الخبر (الصورة والوصف)
 # =========================
 def get_article_details(url):
     try:
-        # استخدام الساحب الذكي لتفادي الحجب داخل المقال
         r = scraper.get(url, timeout=20)
         soup = BeautifulSoup(r.text, "lxml")
 
@@ -101,7 +120,6 @@ def save_published_item(item):
 # جلب Google Token
 # =========================
 def get_google_access_token():
-    # نستخدم requests العادية هنا لأنها خاصة بجوجل ولا تحتاج لتخطي حماية
     import requests
     creds = Credentials(
         token=None,
@@ -118,9 +136,7 @@ def get_google_access_token():
 # =========================
 def scrape_site(name, url):
     try:
-        # السحب باستخدام الكائن الذكي لتخطي جدران الحماية
         r = scraper.get(url, timeout=20)
-        
         is_rss = "xml" in r.headers.get("Content-Type", "").lower() or "rss" in url or "feed" in url
         articles = []
 
@@ -137,6 +153,9 @@ def scrape_site(name, url):
                 
                 title_text = title_tag.get_text(strip=True)
                 link_text = link_tag.get_text(strip=True).strip()
+
+                # تنظيف وتنقية العنوان المجلوب من الـ RSS
+                title_text = clean_title(title_text)
 
                 if len(title_text) < 15:
                     continue
@@ -160,6 +179,9 @@ def scrape_site(name, url):
 
                 if not title or not link or len(title) < 15:
                     continue
+
+                # تنظيف العنوان المجلوب من الـ HTML
+                title = clean_title(title)
 
                 if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content"]):
                     continue
@@ -200,23 +222,38 @@ def fetch_latest_news():
 
     return all_articles
 
-# =========================
-# نشر إلى Blogger
-# =========================
+# ====================================================
+# دالة النشر المحدثة: التنسيق، واللغة، وفاصل اقرأ المزيد
+# ====================================================
 def publish_to_blogger(token, title, summary, image, source, link):
-    import requests # نستخدم requests العادية لإرسال البيانات لجوجل
+    import requests
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
+    # تحديد اتجاه المتن والمحاذاة ديناميكياً لتفادي تشتت الكلمات والترقيم
+    if is_english(summary):
+        direction = "ltr"
+        align = "left"
+    else:
+        direction = "rtl"
+        align = "right"
+
+    # بناء هيكل المقال بترتيب منظم جداً
     html = ""
+    
+    # 1. وضع الصورة أولاً بأعلى المقال (إن وجدت)
     if image:
         html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>'
 
+    # 2. وضع فاصل القراءة (Read More) هنا مباشرة بعد الصورة لتصفية الصفحة الرئيسية
+    html += ""
+
+    # 3. محتوى المقال الداخلي الذي سيظهر داخل المشاركة فقط عند الضغط عليها
     html += f"""
-    <p dir="rtl" style="text-align: right; font-size: 16px;">{summary}</p>
+    <p dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.6;">{summary}</p>
     <hr>
     <p dir="rtl" style="text-align: right;"><strong>المصدر:</strong> {source}</p>
     <p dir="rtl" style="text-align: right;">
