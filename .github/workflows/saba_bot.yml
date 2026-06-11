@@ -12,6 +12,11 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          pip install cloudscraper beautifulsoup4 lxml google-auth google-auth-oauthlib google-auth-httplib2 requests
+     
+        
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -23,6 +28,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+    
+         
       - name: Run Python Script
         env:
           BLOG_ID: ${{ secrets.BLOG_ID }}
@@ -38,3 +45,4 @@ jobs:
           git add published_urls.txt || true
           git commit -m "Update published news log"
           git push || true
+
