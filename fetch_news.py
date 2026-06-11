@@ -1,9 +1,16 @@
 import os
-import requests
+import sys
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from urllib.parse import urljoin
+
+# استيراد المكتبة الذكية لتخطي الحماية
+try:
+    import cloudscraper
+except ImportError:
+    print("⚠️ مكتبة cloudscraper غير مثبتة! يرجى تثبيتها عبر الأمر: pip install cloudscraper")
+    sys.exit(1)
 
 # =========================
 # إعدادات Blogger
@@ -15,9 +22,14 @@ REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
 LOG_FILE = "published_urls.txt"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
+# إنشاء كائن السحب الذكي الذي يحاكي متصفحاً حقيقياً تلقائياً
+scraper = cloudscraper.create_scraper(
+    browser={
+        'browser': 'chrome',
+        'platform': 'windows',
+        'desktop': True
+    }
+)
 
 # =========================
 # قائمة المواقع
@@ -33,8 +45,9 @@ SOURCES = [
     {"name": "الأحرار نت", "url": "http://www.al-ahrar.net/"},
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
-    {"name": "Arabkoora", "url": "http://www.arabkoora.com/"}, # تأكد من الرابط الصحيح للموقع
-    {"name": "bin sport", "url": "https://binsport.net/"} # تأكد من الرابط الصحيح للموقع
+    {"name": "Arabkoora", "url": "http://www.arabkoora.com/"},
+    # قم بتحديث رابط موقع bin sport هنا بالرابط الصحيح إذا كان يعمل لديك في المتصفح
+    {"name": "bin sport", "url": "https://www.beinsports.com/ar-mena/"} 
 ]
 
 # =========================
@@ -42,18 +55,17 @@ SOURCES = [
 # =========================
 def get_article_details(url):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=20)
+        # استخدام الساحب الذكي لتفادي الحجب داخل المقال
+        r = scraper.get(url, timeout=20)
         soup = BeautifulSoup(r.text, "lxml")
 
         image = ""
         description = ""
 
-        # محاولة جلب الصورة من وسوم الميتا
         og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
         if og_image and og_image.get("content"):
             image = og_image.get("content")
 
-        # محاولة جلب الوصف من وسوم الميتا
         og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
         if og_desc and og_desc.get("content"):
             description = og_desc.get("content")
@@ -89,6 +101,8 @@ def save_published_item(item):
 # جلب Google Token
 # =========================
 def get_google_access_token():
+    # نستخدم requests العادية هنا لأنها خاصة بجوجل ولا تحتاج لتخطي حماية
+    import requests
     creds = Credentials(
         token=None,
         refresh_token=REFRESH_TOKEN,
@@ -104,21 +118,18 @@ def get_google_access_token():
 # =========================
 def scrape_site(name, url):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=20)
+        # السحب باستخدام الكائن الذكي لتخطي جدران الحماية
+        r = scraper.get(url, timeout=20)
         
-        # فحص ما إذا كان الموقع عبارة عن خلاصة RSS
         is_rss = "xml" in r.headers.get("Content-Type", "").lower() or "rss" in url or "feed" in url
-        
         articles = []
 
         if is_rss:
-            # استخدام lxml-xml لقراءة الـ RSS بشكل صحيح ومضمون
             soup = BeautifulSoup(r.text, "xml")
             items = soup.find_all("item")
             
             for item in items:
                 title_tag = item.find("title")
-                # خلاصات RSS قد تضع الرابط داخل وسام link بطرق مختلفة، هنا نقوم بجلبه بأي شكل كان
                 link_tag = item.find("link")
                 
                 if not title_tag or not link_tag:
@@ -127,7 +138,6 @@ def scrape_site(name, url):
                 title_text = title_tag.get_text(strip=True)
                 link_text = link_tag.get_text(strip=True).strip()
 
-                # تخطي إذا كان العنوان قصير جداً
                 if len(title_text) < 15:
                     continue
 
@@ -143,7 +153,6 @@ def scrape_site(name, url):
                 if len(articles) >= 5:
                     break
         else:
-            # السحب العادي من صفحات الـ HTML
             soup = BeautifulSoup(r.text, "lxml")
             for item in soup.select("a"):
                 title = item.get_text(strip=True)
@@ -152,7 +161,6 @@ def scrape_site(name, url):
                 if not title or not link or len(title) < 15:
                     continue
 
-                # تصفية الروابط غير الإخبارية
                 if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content"]):
                     continue
 
@@ -196,6 +204,7 @@ def fetch_latest_news():
 # نشر إلى Blogger
 # =========================
 def publish_to_blogger(token, title, summary, image, source, link):
+    import requests # نستخدم requests العادية لإرسال البيانات لجوجل
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
     headers = {
         "Authorization": f"Bearer {token}",
