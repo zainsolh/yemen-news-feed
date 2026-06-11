@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-from urllib.parse import urljoin  # تم إضافتها لإصلاح الروابط الناقصة تلقائياً
+from urllib.parse import urljoin
 
 # =========================
 # إعدادات Blogger
@@ -20,12 +20,12 @@ HEADERS = {
 }
 
 # =========================
-# المواقع (تم تحديث بعضها لروابط RSS لاستقرار أعلى)
+# قائمة المواقع
 # =========================
 SOURCES = [
     {"name": "سبأ نت", "url": "https://www.sabanew.net"},
-    {"name": "المشهد اليمني", "url": "https://www.almashhad.news/rss.php"}, # يدعم RSS
-    {"name": "عدن الغد", "url": "https://adngad.net/rss/"}, # يدعم RSS
+    {"name": "المشهد اليمني", "url": "https://www.almashhad.news/rss.php"}, 
+    {"name": "عدن الغد", "url": "https://adngad.net/rss/"}, 
     {"name": "صحافة نت", "url": "https://sahaafa.net"},
     {"name": "الهدهد", "url": "https://al-hudhud.net"},
     {"name": "24 بوست", "url": "http://www.24-post.com/"},
@@ -33,10 +33,8 @@ SOURCES = [
     {"name": "الأحرار نت", "url": "http://www.al-ahrar.net/"},
     {"name": "الساحل", "url": "http://www.alsahil.net/"},
     {"name": "ArabNN", "url": "http://www.arabnn.news/"},
-    {"name": "Arabkoora", "url": "https://www.kooora.com/?n=0&rss=1"},
-
-    { "name": "bin sport", "url":  "https://www.beinsports.com/ar-mena"}
-    
+    {"name": "Arabkoora", "url": "http://www.arabkoora.com/"}, # تأكد من الرابط الصحيح للموقع
+    {"name": "bin sport", "url": "https://binsport.net/"} # تأكد من الرابط الصحيح للموقع
 ]
 
 # =========================
@@ -50,7 +48,7 @@ def get_article_details(url):
         image = ""
         description = ""
 
-        # محاولة جلب الصورة من وسوم الميتا (OG)
+        # محاولة جلب الصورة من وسوم الميتا
         og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
         if og_image and og_image.get("content"):
             image = og_image.get("content")
@@ -60,7 +58,6 @@ def get_article_details(url):
         if og_desc and og_desc.get("content"):
             description = og_desc.get("content")
 
-        # إذا لم ينجح، يبحث في أول فقرة نصية
         if not description:
             p = soup.find("p")
             if p:
@@ -68,7 +65,7 @@ def get_article_details(url):
 
         return {
             "image": image,
-            "description": description[:400] # اقتطاع أول 400 حرف فقط
+            "description": description[:400]
         }
 
     except Exception as e:
@@ -89,7 +86,7 @@ def save_published_item(item):
         f.write(item + "\n")
 
 # =========================
-# جلب Google Token للـ Blogger
+# جلب Google Token
 # =========================
 def get_google_access_token():
     creds = Credentials(
@@ -103,31 +100,37 @@ def get_google_access_token():
     return creds.token
 
 # =========================
-# استخراج الأخبار الذكي (يدعم RSS و HTML)
+# استخراج الأخبار الذكي والمطور
 # =========================
 def scrape_site(name, url):
     try:
         r = requests.get(url, headers=HEADERS, timeout=20)
-        # تحديد نوع المحتوى (هل هو RSS xml أم صفحة HTML عادية)
-        is_rss = "xml" in r.headers.get("Content-Type", "").lower() or "rss" in url
         
-        soup = BeautifulSoup(r.text, "xml" if is_rss else "lxml")
+        # فحص ما إذا كان الموقع عبارة عن خلاصة RSS
+        is_rss = "xml" in r.headers.get("Content-Type", "").lower() or "rss" in url or "feed" in url
+        
         articles = []
 
         if is_rss:
-            # طريقة السحب من خلاصات RSS
+            # استخدام lxml-xml لقراءة الـ RSS بشكل صحيح ومضمون
+            soup = BeautifulSoup(r.text, "xml")
             items = soup.find_all("item")
+            
             for item in items:
-                title = item.find("title")
-                link = item.find("link")
+                title_tag = item.find("title")
+                # خلاصات RSS قد تضع الرابط داخل وسام link بطرق مختلفة، هنا نقوم بجلبه بأي شكل كان
+                link_tag = item.find("link")
                 
-                if not title or not link:
+                if not title_tag or not link_tag:
                     continue
                 
-                title_text = title.get_text(strip=True)
-                link_text = link.get_text(strip=True)
-                
-                # جلب التفاصيل والصورة من رابط المقال الأصلي
+                title_text = title_tag.get_text(strip=True)
+                link_text = link_tag.get_text(strip=True).strip()
+
+                # تخطي إذا كان العنوان قصير جداً
+                if len(title_text) < 15:
+                    continue
+
                 details = get_article_details(link_text)
                 
                 articles.append({
@@ -140,7 +143,8 @@ def scrape_site(name, url):
                 if len(articles) >= 5:
                     break
         else:
-            # طريقة السحب العادية من الـ HTML مع تحسينات قوية
+            # السحب العادي من صفحات الـ HTML
+            soup = BeautifulSoup(r.text, "lxml")
             for item in soup.select("a"):
                 title = item.get_text(strip=True)
                 link = item.get("href")
@@ -148,13 +152,11 @@ def scrape_site(name, url):
                 if not title or not link or len(title) < 15:
                     continue
 
-                # تخطي الروابط الداخلية غير المفيدة
-                if any(x in link for x in ["contact", "about", "privacy", "policy", "category"]):
+                # تصفية الروابط غير الإخبارية
+                if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content"]):
                     continue
 
-                # دمج الرابط التلقائي (يحول الرابط من /news/1 إلى الرابط الكامل للموقع تلقائياً)
                 link = urljoin(url, link)
-
                 details = get_article_details(link)
 
                 articles.append({
@@ -230,7 +232,7 @@ def publish_to_blogger(token, title, summary, image, source, link):
         return False
 
 # =========================
-# الدالة الرئيسية التشغيلية
+# الدالة الرئيسية
 # =========================
 def main():
     if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
@@ -240,7 +242,7 @@ def main():
     try:
         token = get_google_access_token()
     except Exception as e:
-        print(f"❌ خطأ في تجديد كود الوصول لجوجل (Token Error): {e}")
+        print(f"❌ خطأ في تجديد كود الوصول لجوجل: {e}")
         return
 
     articles = fetch_latest_news()
