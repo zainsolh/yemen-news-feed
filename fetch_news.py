@@ -2,21 +2,22 @@ import os
 import sys
 import re
 import time
+import requests
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from urllib.parse import urljoin
 
-# استيراد المكتبة الذكية لتخطي الحماية
+# استيراد المكتبة الذكية لتخطي حماية جدران المواقع الرياضية والإخبارية
 try:
     import cloudscraper
 except ImportError:
     print("⚠️ مكتبة cloudscraper غير مثبتة! يرجى تثبيتها عبر الأمر: pip install cloudscraper")
     sys.exit(1)
 
-# ==========================================
-# إعدادات ومتغيرات البيئة لمنصة Blogger
-# ==========================================
+# =========================
+# إعدادات Blogger
+# =========================
 BLOG_ID = os.environ.get("BLOG_ID")
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -24,7 +25,7 @@ REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
 LOG_FILE = "published_urls.txt"
 
-# إنشاء كائن متصفح افتراضي ذكي لتجنب حظر المواقع
+# إعداد كائن السحب محاكياً لمتصفح حقيقي بالكامل لتفادي الحجب أثناء الجلب
 scraper = cloudscraper.create_scraper(
     browser={
         'browser': 'chrome',
@@ -33,9 +34,9 @@ scraper = cloudscraper.create_scraper(
     }
 )
 
-# ==========================================
-# قائمة المصادر والمواقع المستهدفة
-# ==========================================
+# =========================
+# قائمة المواقع المستهدفة (12 موقعاً)
+# =========================
 SOURCES = [
     {"name": "سبأ نت", "url": "https://www.sabanew.net"},
     {"name": "المشهد اليمني", "url": "https://www.almashhad.news/rss.php"}, 
@@ -51,21 +52,17 @@ SOURCES = [
     {"name": "bin sport", "url": "https://www.beinsports.com/ar-mena/"} 
 ]
 
-# ==========================================
-# دالة تنظيف العناوين وفصل الكلمات الملتصقة
-# ==========================================
+# دالة ذكية لتنظيف العناوين الملتصقة والمكررة وتحسين الـ SEO
 def clean_title(title):
     title = title.strip()
-    # فصل العلامة التجارية عن بداية الكلام (مثل 2026™المغرب تصبح 2026™ المغرب)
     title = re.sub(r'(™)([\u0600-\u06FF\w])', r'\1 \2', title)
-    # إزالة تكرار العناوين المتطابقة الملتصقة ببعضها
     if "كأس العالم FIFA 2026™كأس العالم FIFA 2026™" in title:
-        title = title.replace("كأس allocation FIFA 2026™كأس العالم FIFA 2026™", "كأس العالم FIFA 2026™")
+        title = title.replace("كأس العالم FIFA 2026™كأس العالم FIFA 2026™", "كأس العالم FIFA 2026™")
     title = re.sub(r'\b(\w+)\1\b', r'\1', title)
     title = " ".join(title.split())
     return title
 
-# دالة فحص لغة النص لتحديد الاتجاه المناسب للكتابة
+# فحص لغة المحتوى لضبط اتجاه الأسطر ديناميكياً
 def is_english(text):
     if not text:
         return False
@@ -75,9 +72,9 @@ def is_english(text):
         return False
     return (english_chars / total_chars) > 0.5
 
-# ==========================================
-# دالة استخراج تفاصيل المقال (الوصف والصورة)
-# ==========================================
+# =========================
+# استخراج تفاصيل الخبر
+# =========================
 def get_article_details(url):
     try:
         r = scraper.get(url, timeout=20)
@@ -107,9 +104,9 @@ def get_article_details(url):
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
         return {"image": "", "description": ""}
 
-# ==========================================
-# دالات إدارة السجل لمنع تكرار النشر
-# ==========================================
+# =========================
+# إدارة سجل منع التكرار
+# =========================
 def load_published_items():
     if not os.path.exists(LOG_FILE):
         return set()
@@ -120,9 +117,10 @@ def save_published_item(item):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(item + "\n")
 
-# جلب رمز الوصول المحدث من جوجل لعمل الـ API
+# =========================
+# جلب Google Access Token
+# =========================
 def get_google_access_token():
-    import requests
     creds = Credentials(
         token=None,
         refresh_token=REFRESH_TOKEN,
@@ -133,9 +131,9 @@ def get_google_access_token():
     creds.refresh(Request())
     return creds.token
 
-# ==========================================
-# دالة سحب وجلب البيانات من المواقع
-# ==========================================
+# ====================================================
+# استخراج الأخبار الذكي (محدث لجلب خبر واحد فقط لكل موقع)
+# ====================================================
 def scrape_site(name, url):
     try:
         r = scraper.get(url, timeout=20)
@@ -168,7 +166,9 @@ def scrape_site(name, url):
                     "link": link_text,
                     "source": name
                 })
-                if len(articles) >= 5:
+                
+                # ⭐ تعديل الفكرة: التوقف فوراً بعد جلب أحدث خبر واحد فقط من موقع الـ RSS
+                if len(articles) >= 1:
                     break
         else:
             soup = BeautifulSoup(r.text, "lxml")
@@ -181,7 +181,6 @@ def scrape_site(name, url):
 
                 title = clean_title(title)
 
-                # تصفية الصفحات والروابط غير الإخبارية الثابتة
                 if any(x in link.lower() for x in ["contact", "about", "privacy", "policy", "category", "wp-content", "faq", "ترددات", "الأسئلة"]):
                     continue
                 if any(x in title for x in ["الأسئلة الأكثر شيوعاً", "ترددات beIN", "beIN MEDIA GROUP"]):
@@ -198,7 +197,8 @@ def scrape_site(name, url):
                     "source": name
                 })
 
-                if len(articles) >= 5:
+                # ⭐ تعديل الفكرة: التوقف فوراً بعد جلب أحدث خبر واحد فقط من موقع الـ HTML
+                if len(articles) >= 1:
                     break
         return articles
     except Exception as e:
@@ -212,24 +212,22 @@ def fetch_latest_news():
         print(f"\n=== جاري الفحص: {source['name']} ===")
         items = scrape_site(source["name"], source["url"])
         if items:
-            print(f"✅ تم جلب {len(items)} أخبار بنجاح")
+            print(f"✅ تم جلب أحدث خبر بنجاح")
             all_articles.extend(items)
         else:
             print("⚠️ لم يتم العثور على أخبار أو فشل السحب")
     return all_articles
 
 # ====================================================
-# دالة النشر المطورة: حل مشكلة التسميات وفاصل القراءة الحتمي
+# دالة النشر المحدثة: معالجة الحجب، التصنيفات، وفاصل القراءة الحتمي
 # ====================================================
 def publish_to_blogger(token, title, summary, image, source, link):
-    import requests
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
-    # تحديد اتجاه الكتابة حسب لغة النص المجلوب
     if is_english(summary):
         direction = "ltr"
         align = "left"
@@ -237,15 +235,19 @@ def publish_to_blogger(token, title, summary, image, source, link):
         direction = "rtl"
         align = "right"
 
-    # بناء كود الـ HTML مع فصل أمر القطع برمجياً بأسطر جديدة \n لضمان استجابة قالب بلوجر له
+    # إلغاء تضمين روابط الصور المباشرة من beIN لحماية الـ DNS للمدونة من الحظر
+    if source in ["bin sport"]:
+        image = ""
+
     html = ""
     if image:
         html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>\n'
+    else:
+        html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
-    # وضع الفاصل البرمجي الحتمي في سطر منفصل تماماً ومستقل
-    html += "\n<!--more-->\n"
+    # فصل الفاصل بأسطر جديدة لإجبار القالب على معالجة الاختصار
+    html += "\n\n"
     
-    # بقية محتوى المقال الداخلي
     html += f"""
     <p dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.6;">{summary}</p>
     <hr>
@@ -257,11 +259,8 @@ def publish_to_blogger(token, title, summary, image, source, link):
     </p>
     """
 
-    # --- إعداد وإضافة التصنيفات (Labels) ديناميكياً ---
-    # بشكل افتراضي، تندرج الأخبار تحت اسم المصدر وتصنيف العام
     post_labels = [source, "أخبار اليمن"]
     
-    # الفحص الشرطي الذكي: إذا كان الخبر رياضياً، نضيف تصنيف "رياضة" فوراً ليظهر في القسم المخصص له بمدونتك
     if source in ["bin sport", "Arabkoora"]:
         post_labels.append("رياضة")
 
@@ -274,16 +273,14 @@ def publish_to_blogger(token, title, summary, image, source, link):
     try:
         r = requests.post(url, json=payload, headers=headers)
         print(f"بيان النشر للمقالة [{title[:20]}...]: {r.status_code}")
-        if r.status_code == 429:
-            print("⚠️ تنبيه: تم تجاوز الحد المسموح به من جوجل (Rate Limit).")
         return r.status_code == 200
     except Exception as e:
         print(f"❌ خطأ أثناء الاتصال بـ Blogger API: {e}")
         return False
 
-# ==========================================
-# الدالة الرئيسية لتشغيل السكريبت كاملاً
-# ==========================================
+# ====================================================
+# الدالة الرئيسية (محدثة لتعمل بحد أقصى 12 خبراً)
+# ====================================================
 def main():
     if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
         print("❌ خطأ: بعض متغيرات البيئة (Secrets) مفقودة!")
@@ -327,8 +324,9 @@ def main():
             print("⏳ فشل النشر، الانتظار 30 ثانية لتخفيف الضغط...")
             time.sleep(30)
 
-        if published_count >= 10:
-            print("🚀 تم الوصول للحد الأقصى للنشر في هذه الدورة (10 أخبار).")
+        # ⭐ التعديل: السماح بنشر حتى 12 خبراً بحد أقصى (خبر واحد لكل موقع من الـ 12)
+        if published_count >= 12:
+            print("🚀 تم الوصول للحد الأقصى المحدث لهذه الدورة (12 أخبار متفرقة).")
             break
 
 if __name__ == "__main__":
