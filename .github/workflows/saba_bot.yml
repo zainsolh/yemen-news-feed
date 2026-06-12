@@ -12,11 +12,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-      - name: Install dependencies
-        run: |
-          pip install cloudscraper beautifulsoup4 lxml google-auth google-auth-oauthlib google-auth-httplib2 requests
-     
-        
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -26,16 +21,19 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install cloudscraper beautifulsoup4 lxml google-auth google-auth-oauthlib google-auth-httplib2 requests tweepy
 
-    
-         
       - name: Run Python Script
         env:
           BLOG_ID: ${{ secrets.BLOG_ID }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          # 🐦 مفاتيح ربط تويتر الجديدة المستدعاة من الـ GitHub Secrets
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
         run: python fetch_news.py
 
       - name: Commit and Push Changes
@@ -45,4 +43,3 @@ jobs:
           git add published_urls.txt || true
           git commit -m "Update published news log"
           git push || true
-
