@@ -221,12 +221,11 @@ def fetch_latest_news():
 # دالة النشر التلقائي المحدثة في منصة تويتر (X)
 # ==========================================
 def publish_to_twitter(title, source, link):
-    # التأكد من وجود كل المفاتيح لتجنب توقف السكريبت
     if not all([TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
-        print("⚠️ مفاتيح تويتر (X API Secrets) مفقودة أو غير مضافة، تم تخطي النشر على تويتر.")
+        print("⚠️ مفاتيح تويتر (X API Secrets) مفقودة، تم تخطي النشر.")
         return False
     try:
-        # استخدام إعدادات Tweepy v2 المخصصة للتغريد الحديث مجاناً واحترافياً
+        # 🧠 إجبار Tweepy على استخدام الاتصال الصافي بـ API v2 المتوافق مع الحسابات المجانية
         client = tweepy.Client(
             consumer_key=TWITTER_API_KEY,
             consumer_secret=TWITTER_API_SECRET,
@@ -234,17 +233,24 @@ def publish_to_twitter(title, source, link):
             access_token_secret=TWITTER_ACCESS_TOKEN_SECRET
         )
         
-        # تنسيق نص التغريدة لضمان عدم تخطي الـ 280 حرفاً المسموحة
+        # تنسيق الهاشتاق والنص ليتناسب مع قيود الحروف
         hashtag = source.replace(" ", "_")
-        tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل كاملة:\n{link}"
-        if len(tweet_text) > 275:
-            tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title[:180]}...\n\n🔗 التفاصيل كاملة:\n{link}"
+        tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل:\n{link}"
+        if len(tweet_text) > 270:
+            tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title[:170]}...\n\n🔗 التفاصيل:\n{link}"
             
-        client.create_tweet(text=tweet_text)
-        print("🐦 ✅ تم نشر الخبر بنجاح على حسابك في تويتر (X)!")
-        return True
+        # استخدام دالة create_tweet المباشرة التابعة لـ v2
+        response = client.create_tweet(text=tweet_text)
+        
+        if response and response.data:
+            print("🐦 ✅ تم نشر الخبر بنجاح على حسابك في تويتر (X) مجاناً!")
+            return True
+        else:
+            print("🐦 ⚠️ لم يتم تأكيد النشر بشكل كامل من السيرفر.")
+            return False
+            
     except Exception as e:
-        print(f"🐦 ❌ فشل النشر على تويتر بسبب: {e}")
+        print(f"🐦 ❌ فشل النشر على تويتر بسبب قيود الخطة: {e}")
         return False
 
 # ====================================================
