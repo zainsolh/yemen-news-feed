@@ -8,7 +8,6 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from urllib.parse import urljoin
 
-# استيراد المكتبة الذكية لتخطي حماية جدران المواقع الرياضية والإخبارية
 try:
     import cloudscraper
 except ImportError:
@@ -25,7 +24,6 @@ REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
 LOG_FILE = "published_urls.txt"
 
-# إعداد كائن السحب محاكياً لمتصفح حقيقي بالكامل لتفادي الحجب أثناء الجلب
 scraper = cloudscraper.create_scraper(
     browser={
         'browser': 'chrome',
@@ -35,7 +33,7 @@ scraper = cloudscraper.create_scraper(
 )
 
 # =========================
-# قائمة المواقع المستهدفة (12 موقعاً)
+# قائمة المواقع
 # =========================
 SOURCES = [
     {"name": "سبأ نت", "url": "https://www.sabanew.net"},
@@ -52,7 +50,6 @@ SOURCES = [
     {"name": "bin sport", "url": "https://www.beinsports.com/ar-mena/"} 
 ]
 
-# دالة ذكية لتنظيف العناوين الملتصقة والمكررة وتحسين الـ SEO
 def clean_title(title):
     title = title.strip()
     title = re.sub(r'(™)([\u0600-\u06FF\w])', r'\1 \2', title)
@@ -62,7 +59,6 @@ def clean_title(title):
     title = " ".join(title.split())
     return title
 
-# فحص لغة المحتوى لضبط اتجاه الأسطر ديناميكياً
 def is_english(text):
     if not text:
         return False
@@ -105,7 +101,7 @@ def get_article_details(url):
         return {"image": "", "description": ""}
 
 # =========================
-# إدارة سجل منع التكرار
+# إدارة السجل
 # =========================
 def load_published_items():
     if not os.path.exists(LOG_FILE):
@@ -118,7 +114,7 @@ def save_published_item(item):
         f.write(item + "\n")
 
 # =========================
-# جلب Google Access Token
+# جلب جوجل توكن
 # =========================
 def get_google_access_token():
     creds = Credentials(
@@ -131,9 +127,9 @@ def get_google_access_token():
     creds.refresh(Request())
     return creds.token
 
-# ====================================================
-# استخراج الأخبار الذكي (محدث لجلب خبر واحد فقط لكل موقع)
-# ====================================================
+# =========================
+# استخراج الأخبار (نسحب 6 كبدائل، ونختار لاحقاً)
+# =========================
 def scrape_site(name, url):
     try:
         r = scraper.get(url, timeout=20)
@@ -167,8 +163,8 @@ def scrape_site(name, url):
                     "source": name
                 })
                 
-                # ⭐ تعديل الفكرة: التوقف فوراً بعد جلب أحدث خبر واحد فقط من موقع الـ RSS
-                if len(articles) >= 1:
+                # نأخذ 6 أخبار كخيارات احتياطية
+                if len(articles) >= 6:
                     break
         else:
             soup = BeautifulSoup(r.text, "lxml")
@@ -197,8 +193,7 @@ def scrape_site(name, url):
                     "source": name
                 })
 
-                # ⭐ تعديل الفكرة: التوقف فوراً بعد جلب أحدث خبر واحد فقط من موقع الـ HTML
-                if len(articles) >= 1:
+                if len(articles) >= 6:
                     break
         return articles
     except Exception as e:
@@ -212,15 +207,15 @@ def fetch_latest_news():
         print(f"\n=== جاري الفحص: {source['name']} ===")
         items = scrape_site(source["name"], source["url"])
         if items:
-            print(f"✅ تم جلب أحدث خبر بنجاح")
+            print(f"✅ تم سحب {len(items)} أخبار للفحص")
             all_articles.extend(items)
         else:
             print("⚠️ لم يتم العثور على أخبار أو فشل السحب")
     return all_articles
 
-# ====================================================
-# دالة النشر المحدثة: معالجة الحجب، التصنيفات، وفاصل القراءة الحتمي
-# ====================================================
+# =========================
+# نشر إلى Blogger
+# =========================
 def publish_to_blogger(token, title, summary, image, source, link):
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
     headers = {
@@ -235,7 +230,6 @@ def publish_to_blogger(token, title, summary, image, source, link):
         direction = "rtl"
         align = "right"
 
-    # إلغاء تضمين روابط الصور المباشرة من beIN لحماية الـ DNS للمدونة من الحظر
     if source in ["bin sport"]:
         image = ""
 
@@ -245,7 +239,6 @@ def publish_to_blogger(token, title, summary, image, source, link):
     else:
         html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
-    # فصل الفاصل بأسطر جديدة لإجبار القالب على معالجة الاختصار
     html += "\n\n"
     
     html += f"""
@@ -278,9 +271,9 @@ def publish_to_blogger(token, title, summary, image, source, link):
         print(f"❌ خطأ أثناء الاتصال بـ Blogger API: {e}")
         return False
 
-# ====================================================
-# الدالة الرئيسية (محدثة لتعمل بحد أقصى 12 خبراً)
-# ====================================================
+# =========================
+# الدالة الرئيسية الذكية
+# =========================
 def main():
     if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
         print("❌ خطأ: بعض متغيرات البيئة (Secrets) مفقودة!")
@@ -298,24 +291,36 @@ def main():
         return
 
     published = load_published_items()
+    
     published_count = 0
+    published_per_source = {} # 🧠 الذاكرة الذكية: لتتبع عدد الأخبار المنشورة من كل موقع في هذه الساعة
 
     for a in articles:
+        source_name = a["source"]
+        
+        # إذا كنا قد نشرنا بالفعل خبراً جديداً من هذا الموقع في هذه الدورة، نتخطى باقي أخباره لينتقل للموقع التالي
+        if published_per_source.get(source_name, 0) >= 1:
+            continue
+
         title = a["title"].strip()
         link = a["link"].strip()
 
+        # إذا كان الخبر مكرراً (موجوداً في السجل)، نتخطاه وسيقوم اللوب بفحص الخبر الذي يليه من نفس الموقع
         if link in published or title in published:
-            print(f"⏭️ تخطي خبر مكرر: {title[:30]}...")
+            print(f"⏭️ تخطي خبر مكرر من {source_name}: {title[:30]}...")
             continue
 
-        print(f"📰 جاري نشر: {title}")
-        success = publish_to_blogger(token, title, a["summary"], a["image"], a["source"], link)
+        # وجدنا خبراً جديداً تماماً! نقوم بنشره الآن
+        print(f"📰 جاري نشر خبر جديد من {source_name}: {title}")
+        success = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
 
         if success:
             save_published_item(link)
             save_published_item(title)
             published.add(link)
             published.add(title)
+            
+            published_per_source[source_name] = 1 # تسجيل في الذاكرة أنه تم أخذ حصة هذا الموقع
             published_count += 1
             
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
@@ -324,7 +329,6 @@ def main():
             print("⏳ فشل النشر، الانتظار 30 ثانية لتخفيف الضغط...")
             time.sleep(30)
 
-        # ⭐ التعديل: السماح بنشر حتى 12 خبراً بحد أقصى (خبر واحد لكل موقع من الـ 12)
         if published_count >= 12:
             print("🚀 تم الوصول للحد الأقصى المحدث لهذه الدورة (12 أخبار متفرقة).")
             break
