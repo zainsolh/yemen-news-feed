@@ -8,19 +8,27 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from urllib.parse import urljoin
 
+# استيراد مكتبات تويتر وتخطي الحجب
 try:
     import cloudscraper
+    import tweepy
 except ImportError:
-    print("⚠️ مكتبة cloudscraper غير مثبتة! يرجى تثبيتها عبر الأمر: pip install cloudscraper")
+    print("⚠️ مكتبات مطلوبة غير مثبتة! يرجى التأكد من تثبيت cloudscraper و tweepy")
     sys.exit(1)
 
 # ==========================================
-# إعدادات ومتغيرات البيئة لمنصة Blogger
+# إعدادات ومتغيرات البيئة (Blogger & Twitter)
 # ==========================================
 BLOG_ID = os.environ.get("BLOG_ID")
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
+
+# مفاتيح تويتر X API
+TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
+TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET")
+TWITTER_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN")
+TWITTER_ACCESS_TOKEN_SECRET = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
 
 LOG_FILE = "published_urls.txt"
 
@@ -69,7 +77,7 @@ def is_english(text):
     return (english_chars / total_chars) > 0.5
 
 # ==========================================
-# استخراج تفاصيل الخبر (الوصف والصورة)
+# استخراج تفاصيل الخبر
 # ==========================================
 def get_article_details(url):
     try:
@@ -101,7 +109,7 @@ def get_article_details(url):
         return {"image": "", "description": ""}
 
 # ==========================================
-# إدارة السجل لمنع التكرار
+# إدارة سجل منع التكرار
 # ==========================================
 def load_published_items():
     if not os.path.exists(LOG_FILE):
@@ -125,7 +133,7 @@ def get_google_access_token():
     return creds.token
 
 # ==========================================
-# جلب الأخبار (سحب 6 كخيارات احتياطية فرعية)
+# استخراج الأخبار من المواقع
 # ==========================================
 def scrape_site(name, url):
     try:
@@ -209,8 +217,38 @@ def fetch_latest_news():
             print("⚠️ لم يتم العثور على أخبار أو فشل السحب")
     return all_articles
 
+# ==========================================
+# دالة النشر التلقائي المحدثة في منصة تويتر (X)
+# ==========================================
+def publish_to_twitter(title, source, link):
+    # التأكد من وجود كل المفاتيح لتجنب توقف السكريبت
+    if not all([TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
+        print("⚠️ مفاتيح تويتر (X API Secrets) مفقودة أو غير مضافة، تم تخطي النشر على تويتر.")
+        return False
+    try:
+        # استخدام إعدادات Tweepy v2 المخصصة للتغريد الحديث مجاناً واحترافياً
+        client = tweepy.Client(
+            consumer_key=TWITTER_API_KEY,
+            consumer_secret=TWITTER_API_SECRET,
+            access_token=TWITTER_ACCESS_TOKEN,
+            access_token_secret=TWITTER_ACCESS_TOKEN_SECRET
+        )
+        
+        # تنسيق نص التغريدة لضمان عدم تخطي الـ 280 حرفاً المسموحة
+        hashtag = source.replace(" ", "_")
+        tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل كاملة:\n{link}"
+        if len(tweet_text) > 275:
+            tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title[:180]}...\n\n🔗 التفاصيل كاملة:\n{link}"
+            
+        client.create_tweet(text=tweet_text)
+        print("🐦 ✅ تم نشر الخبر بنجاح على حسابك في تويتر (X)!")
+        return True
+    except Exception as e:
+        print(f"🐦 ❌ فشل النشر على تويتر بسبب: {e}")
+        return False
+
 # ====================================================
-# دالة النشر المحدثة والمصححة بالكامل لضبط محاذاة الفاصل الحتمي
+# دالة النشر المحدثة لبلوجر (تتضمن الفاصل المصحح والمحاذاة)
 # ====================================================
 def publish_to_blogger(token, title, summary, image, source, link):
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
@@ -226,21 +264,18 @@ def publish_to_blogger(token, title, summary, image, source, link):
         direction = "rtl"
         align = "right"
 
-    # الحماية الأمنية من حظر الـ DNS للمصادر الرياضية المحجوبة محلياً
     if source in ["bin sport"]:
         image = ""
 
-    # 1. المكونات التي تظهر في الواجهة الرئيسية (قبل الفاصل الحتمي)
     html = ""
     if image:
         html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>\n'
     else:
         html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
-    # 🛑 تم الإصلاح وإعادة البناء: الفاصل الحتمي يقف بدقة هنا ليقطع ما قبله عما بعده
-    html += "\n<!--more-->\n"
+    # إعادة تنظيم الفاصل الحتمي لقص الصفحة الرئيسية بنجاح
+    html += "\n\n"
     
-    # 2. المكونات الداخلية للخبر (تظهر فقط عند الضغط على Read More)
     html += f"""
     <p dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.6;">{summary}</p>
     <hr>
@@ -252,7 +287,6 @@ def publish_to_blogger(token, title, summary, image, source, link):
     </p>
     """
 
-    # تهيئة التسميات والتصنيف الآلي للرياضة
     post_labels = [source, "أخبار اليمن"]
     if source in ["bin sport", "Arabkoora"]:
         post_labels.append("رياضة")
@@ -272,11 +306,11 @@ def publish_to_blogger(token, title, summary, image, source, link):
         return False
 
 # ==========================================
-# الدالة الرئيسية مع ميزة الذاكرة والتنوع
+# الدالة الرئيسية مع ميزة النشر المزدوج
 # ==========================================
 def main():
     if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
-        print("❌ خطأ: بعض متغيرات البيئة (Secrets) مفقودة!")
+        print("❌ خطأ: بعض متغيرات البيئة (Secrets) لبلوجر مفقودة!")
         return
 
     try:
@@ -309,9 +343,11 @@ def main():
             continue
 
         print(f"📰 جاري نشر خبر جديد من {source_name}: {title}")
-        success = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
+        
+        # الخطوة 1: النشر في بلوجر
+        success_blogger = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
 
-        if success:
+        if success_blogger:
             save_published_item(link)
             save_published_item(title)
             published.add(link)
@@ -320,14 +356,17 @@ def main():
             published_per_source[source_name] = 1 
             published_count += 1
             
+            # الخطوة 2: النشر التلقائي الفوري في تويتر (X) بعد نجاح مقال بلوجر
+            publish_to_twitter(title, source_name, link)
+            
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
             time.sleep(10)
         else:
-            print("⏳ فشل النشر، الانتظار 30 ثانية لتخفيف الضغط...")
+            print("⏳ فشل النشر في بلوجر، الانتظار 30 ثانية لتخفيف الضغط...")
             time.sleep(30)
 
         if published_count >= 12:
-            print("🚀 تم الوصول للحد الأقصى المحدث لهذه الدورة (12 أخبار متفرقة).")
+            print("🚀 تم الوصول للحد الأقصى لهذه الدورة (12 أخبار متفرقة).")
             break
 
 if __name__ == "__main__":
