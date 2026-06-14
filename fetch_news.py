@@ -79,30 +79,46 @@ def is_english(text):
 # ==========================================
 # استخراج تفاصيل الخبر
 # ==========================================
+# ==========================================
+# استخراج تفاصيل الخبر (الصورة والمحتوى الكامل)
+# ==========================================
 def get_article_details(url):
     try:
         r = scraper.get(url, timeout=20)
         soup = BeautifulSoup(r.text, "lxml")
 
         image = ""
-        description = ""
+        full_content = ""
 
+        # 1. استخراج الصورة البارزة
         og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
         if og_image and og_image.get("content"):
             image = og_image.get("content")
 
-        og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
-        if og_desc and og_desc.get("content"):
-            description = og_desc.get("content")
+        # 2. استخراج محتوى الخبر بالكامل (الاعتماد على فقرات النص)
+        paragraphs = soup.find_all("p")
+        content_lines = []
 
-        if not description:
-            p = soup.find("p")
-            if p:
-                description = p.get_text(" ", strip=True)
+        for p in paragraphs:
+            text = p.get_text(" ", strip=True)
+            # تجاوز النصوص القصيرة (أقل من 50 حرفاً) لاستبعاد القوائم وحقوق الحفظ
+            # واستبعاد الجمل الإعلانية الشائعة
+            if len(text) > 50 and not any(x in text for x in ["جميع الحقوق محفوظة", "اقرأ أيضاً", "تابعنا على"]):
+                content_lines.append(text)
+
+        # 3. تجميع الفقرات في نصوص HTML جاهزة للنشر في بلوجر
+        if content_lines:
+            # تغليف كل فقرة بوسم <p> مع تنسيق تباعد مريح للعين
+            full_content = "".join([f"<p style='margin-bottom: 15px;'>{line}</p>" for line in content_lines])
+        else:
+            # خطة بديلة (Fallback): في حال فشل سحب الفقرات لسبب ما في هيكل الموقع، نعود للوصف الميتا
+            og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
+            if og_desc and og_desc.get("content"):
+                full_content = f"<p>{og_desc.get('content')}</p>"
 
         return {
             "image": image,
-            "description": description[:400]
+            "description": full_content # احتفظنا بنفس اسم المتغير حتى لا نضطر لتعديل الاستدعاءات في الدالة الرئيسية
         }
     except Exception as e:
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
@@ -281,10 +297,13 @@ def publish_to_blogger(token, title, summary, image, source, link):
 
     # إعادة تنظيم الفاصل الحتمي لقص الصفحة الرئيسية بنجاح
     html += "\n\n"
-    
     html += f"""
-    <p dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.6;">{summary}</p>
+    <div dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.8;">
+        {summary}
+    </div>
+    <br>
     <hr>
+
     <p dir="rtl" style="text-align: right;"><strong>المصدر:</strong> {source}</p>
     <p dir="rtl" style="text-align: right;">
         <a href="{link}" target="_blank" rel="nofollow noopener" style="color: #007bff; text-decoration: none; font-weight: bold;">
