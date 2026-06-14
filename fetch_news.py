@@ -296,7 +296,8 @@ def publish_to_blogger(token, title, summary, image, source, link):
         html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
     # إعادة تنظيم الفاصل الحتمي لقص الصفحة الرئيسية بنجاح
-    html += "\n\n"
+    html += "\n<!--more-->\n"
+
     html += f"""
     <div dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.8;">
         {summary}
