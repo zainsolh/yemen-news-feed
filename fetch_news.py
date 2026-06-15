@@ -8,12 +8,17 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from urllib.parse import urljoin
 
-# استيراد مكتبات تويتر وتخطي الحجب
+# استيراد المكتبات المطلوبة وتخطي الحجب وأتمتة المتصفح
 try:
     import cloudscraper
-    import tweepy
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
 except ImportError:
-    print("⚠️ مكتبات مطلوبة غير مثبتة! يرجى التأكد من تثبيت cloudscraper و tweepy")
+    print("⚠️ مكتبات مطلوبة غير مثبتة! يرجى التأكد من تثبيت cloudscraper و selenium")
     sys.exit(1)
 
 # ==========================================
@@ -24,11 +29,10 @@ CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
-# مفاتيح تويتر X API
-TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
-TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET")
-TWITTER_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN")
-TWITTER_ACCESS_TOKEN_SECRET = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+# بيانات حساب تويتر الحقيقي بدلاً من مفاتيح الـ API
+TWITTER_USERNAME = os.environ.get("TWITTER_USERNAME")
+TWITTER_EMAIL = os.environ.get("TWITTER_EMAIL")
+TWITTER_PASSWORD = os.environ.get("TWITTER_PASSWORD")
 
 LOG_FILE = "published_urls.txt"
 
@@ -79,9 +83,6 @@ def is_english(text):
 # ==========================================
 # استخراج تفاصيل الخبر
 # ==========================================
-# ==========================================
-# استخراج تفاصيل الخبر (الصورة والمحتوى الكامل)
-# ==========================================
 def get_article_details(url):
     try:
         r = scraper.get(url, timeout=20)
@@ -90,36 +91,26 @@ def get_article_details(url):
         image = ""
         full_content = ""
 
-        # 1. استخراج الصورة البارزة
         og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
         if og_image and og_image.get("content"):
             image = og_image.get("content")
 
-        # 2. استخراج محتوى الخبر بالكامل (الاعتماد على فقرات النص)
         paragraphs = soup.find_all("p")
         content_lines = []
 
         for p in paragraphs:
             text = p.get_text(" ", strip=True)
-            # تجاوز النصوص القصيرة (أقل من 50 حرفاً) لاستبعاد القوائم وحقوق الحفظ
-            # واستبعاد الجمل الإعلانية الشائعة
             if len(text) > 50 and not any(x in text for x in ["جميع الحقوق محفوظة", "اقرأ أيضاً", "تابعنا على"]):
                 content_lines.append(text)
 
-        # 3. تجميع الفقرات في نصوص HTML جاهزة للنشر في بلوجر
         if content_lines:
-            # تغليف كل فقرة بوسم <p> مع تنسيق تباعد مريح للعين
             full_content = "".join([f"<p style='margin-bottom: 15px;'>{line}</p>" for line in content_lines])
         else:
-            # خطة بديلة (Fallback): في حال فشل سحب الفقرات لسبب ما في هيكل الموقع، نعود للوصف الميتا
             og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
             if og_desc and og_desc.get("content"):
                 full_content = f"<p>{og_desc.get('content')}</p>"
 
-        return {
-            "image": image,
-            "description": full_content # احتفظنا بنفس اسم المتغير حتى لا نضطر لتعديل الاستدعاءات في الدالة الرئيسية
-        }
+        return {"image": image, "description": full_content}
     except Exception as e:
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
         return {"image": "", "description": ""}
@@ -233,44 +224,83 @@ def fetch_latest_news():
             print("⚠️ لم يتم العثور على أخبار أو فشل السحب")
     return all_articles
 
-# ==========================================
-# دالة النشر التلقائي المحدثة في منصة تويتر (X)
-# ==========================================
-def publish_to_twitter(title, source, link):
-    if not all([TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
-        print("⚠️ مفاتيح تويتر (X API Secrets) مفقودة، تم تخطي النشر.")
-        return False
-    try:
-        # 🧠 إجبار Tweepy على استخدام الاتصال الصافي بـ API v2 المتوافق مع الحسابات المجانية
-        client = tweepy.Client(
-            consumer_key=TWITTER_API_KEY,
-            consumer_secret=TWITTER_API_SECRET,
-            access_token=TWITTER_ACCESS_TOKEN,
-            access_token_secret=TWITTER_ACCESS_TOKEN_SECRET
-        )
-        
-        # تنسيق الهاشتاق والنص ليتناسب مع قيود الحروف
-        hashtag = source.replace(" ", "_")
-        tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل:\n{link}"
-        if len(tweet_text) > 270:
-            tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title[:170]}...\n\n🔗 التفاصيل:\n{link}"
-            
-        # استخدام دالة create_tweet المباشرة التابعة لـ v2
-        response = client.create_tweet(text=tweet_text)
-        
-        if response and response.data:
-            print("🐦 ✅ تم نشر الخبر بنجاح على حسابك في تويتر (X) مجاناً!")
-            return True
-        else:
-            print("🐦 ⚠️ لم يتم تأكيد النشر بشكل كامل من السيرفر.")
-            return False
-            
-    except Exception as e:
-        print(f"🐦 ❌ فشل النشر على تويتر بسبب قيود الخطة: {e}")
+# =======================================================
+# دالة النشر التلقائي الجديدة كلياً عبر المتصفح (Selenium)
+# =======================================================
+def publish_to_twitter(title, source, blogger_url):
+    if not all([TWITTER_USERNAME, TWITTER_PASSWORD, TWITTER_EMAIL]):
+        print("⚠️ بيانات حساب تويتر (Username/Password/Email) مفقودة، تم تخطي النشر.")
         return False
 
+    print("🐦 جاري بدء متصفح الأتمتة للنشر على تويتر...")
+    
+    # إعدادات متصفح كروم ليعمل في الخلفية بدون واجهة رسومية (Headless) يناسب السيرفرات وجهازك
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new") 
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--lang=en")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    try:
+        # 1. فتح صفحة تسجيل دخول تويتر
+        driver.get("https://x.com/i/flow/login")
+        wait = WebDriverWait(driver, 20)
+        
+        # 2. إدخال اسم المستخدم أو الإيميل
+        username_field = wait.until(EC.presence_of_element_located((By.NAME, "text")))
+        username_field.send_keys(TWITTER_USERNAME)
+        username_field.send_keys(Keys.ENTER)
+        time.sleep(3)
+        
+        # 3. التعامل مع خطوة الأمان الإضافية (إذا طلب الإيميل لتأكيد الهوية)
+        try:
+            suspicious_field = driver.find_element(By.NAME, "text")
+            if suspicious_field:
+                print("🔒 تويتر يطلب البريد الإلكتروني لتأكيد الهوية...")
+                suspicious_field.send_keys(TWITTER_EMAIL)
+                suspicious_field.send_keys(Keys.ENTER)
+                time.sleep(3)
+        except:
+            pass # لم يطلب إيميل وتجاوز الخطوة بنجاح
+            
+        # 4. إدخال كلمة المرور
+        password_field = wait.until(EC.presence_of_element_located((By.NAME, "password")))
+        password_field.send_keys(TWITTER_PASSWORD)
+        password_field.send_keys(Keys.ENTER)
+        print("🔐 تم تسجيل الدخول إلى تويتر بنجاح.")
+        time.sleep(5)
+        
+        # 5. صياغة نص التغريدة
+        hashtag = source.replace(" ", "_")
+        tweet_text = f"🚨 جديدنا على المدونة #{hashtag}:\n\n{title}\n\n🔗 تفاصيل الخبر في الرابط التالي:\n{blogger_url}"
+        if len(tweet_text) > 270:
+            tweet_text = f"🚨 جديدنا على المدونة #{hashtag}:\n\n{title[:150]}...\n\n🔗 الرابط:\n{blogger_url}"
+
+        # 6. فتح صندوق التغريد المباشر وكتابة النص
+        driver.get("https://x.com/compose/post")
+        tweet_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-testid='tweetTextarea_0']")))
+        tweet_box.send_keys(tweet_text)
+        time.sleep(2)
+        
+        # 7. الضغط على زر النشر
+        publish_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[data-testid='tweetButton']")))
+        publish_btn.click()
+        
+        print("🐦 ✅ تم نشر المقال بنجاح على تويتر (X) عبر أتمتة Selenium مجاناً!")
+        time.sleep(5) # الانتظار لضمان إرسال التغريدة قبل إغلاق المتصفح
+        return True
+
+    except Exception as e:
+        print(f"🐦 ❌ فشل النشر التلقائي عبر Selenium: {e}")
+        return False
+    finally:
+        driver.quit() # إغلاق المتصفح بأمان من الذاكرة
+
 # ====================================================
-# دالة النشر المحدثة لبلوجر (تتضمن الفاصل المصحح والمحاذاة)
+# دالة النشر لبلوجر
 # ====================================================
 def publish_to_blogger(token, title, summary, image, source, link):
     url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
@@ -293,10 +323,9 @@ def publish_to_blogger(token, title, summary, image, source, link):
     if image:
         html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>\n'
     else:
-        html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
+        html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متمينة من موقع {source}</div><br>\n'
 
-    # إعادة تنظيم الفاصل الحتمي لقص الصفحة الرئيسية بنجاح
-    html += "\n<!--more-->\n"
+    html += "\n\n"
 
     html += f"""
     <div dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.8;">
@@ -326,10 +355,12 @@ def publish_to_blogger(token, title, summary, image, source, link):
     try:
         r = requests.post(url, json=payload, headers=headers)
         print(f"بيان النشر للمقالة [{title[:20]}...]: {r.status_code}")
-        return r.status_code == 200
+        if r.status_code == 200:
+            return r.json().get("url")
+        return None
     except Exception as e:
         print(f"❌ خطأ أثناء الاتصال بـ Blogger API: {e}")
-        return False
+        return None
 
 # ==========================================
 # الدالة الرئيسية مع ميزة النشر المزدوج
@@ -370,10 +401,9 @@ def main():
 
         print(f"📰 جاري نشر خبر جديد من {source_name}: {title}")
         
-        # الخطوة 1: النشر في بلوجر
-        success_blogger = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
+        blogger_url = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
 
-        if success_blogger:
+        if blogger_url:
             save_published_item(link)
             save_published_item(title)
             published.add(link)
@@ -382,11 +412,11 @@ def main():
             published_per_source[source_name] = 1 
             published_count += 1
             
-            # الخطوة 2: النشر التلقائي الفوري في تويتر (X) بعد نجاح مقال بلوجر
-            publish_to_twitter(title, source_name, link)
+            # 🔥 النشر الفوري في تويتر عبر المتصفح التلقائي برابط بلوجر
+            publish_to_twitter(title, source_name, blogger_url)
             
-            print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
-            time.sleep(10)
+            print("⏳ الانتظار 15 ثانية لمنع الحظر...")
+            time.sleep(15)
         else:
             print("⏳ فشل النشر في بلوجر، الانتظار 30 ثانية لتخفيف الضغط...")
             time.sleep(30)
