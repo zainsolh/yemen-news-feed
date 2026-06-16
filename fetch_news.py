@@ -347,10 +347,17 @@ def publish_to_blogger(token, title, summary, image, source, link):
     try:
         r = requests.post(url, json=payload, headers=headers)
         print(f"بيان النشر للمقالة [{title[:20]}...]: {r.status_code}")
-        return r.status_code == 200
+        
+        # التعديل هنا: إذا نجح النشر (كود 200)، استخرج رابط المقال في مدونتك وأعيده
+        if r.status_code == 200:
+            response_data = r.json()
+            blogger_post_url = response_data.get("url") # هذا هو رابط تدوينتك
+            return blogger_post_url
+        return None
     except Exception as e:
         print(f"❌ خطأ أثناء الاتصال بـ Blogger API: {e}")
-        return False
+        return None
+
 
 # ==========================================
 # الدالة الرئيسية مع ميزة النشر الثلاثي (بلوجر، تويتر، فيسبوك)
@@ -391,10 +398,11 @@ def main():
 
         print(f"📰 جاري نشر خبر جديد من {source_name}: {title}")
         
-        # الخطوة 1: النشر في بلوجر
-        success_blogger = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
+        # الخطوة 1: النشر في بلوجر (الدالة الآن تعيد رابط المدونة أو None)
+        blogger_url = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
 
-        if success_blogger:
+        # التعديل هنا: نتحقق إذا كان الرابط موجوداً (أي نجحت العملية)
+        if blogger_url:
             save_published_item(link)
             save_published_item(title)
             published.add(link)
@@ -403,11 +411,11 @@ def main():
             published_per_source[source_name] = 1 
             published_count += 1
             
-            # الخطوة 2: النشر التلقائي الفوري في تويتر (X)
-            publish_to_twitter(title, source_name, link)
+            # الخطوة 2: النشر التلقائي الفوري في تويتر (X) باستخدام رابط مدونتك
+            publish_to_twitter(title, source_name, blogger_url)
             
-            # الخطوة 3: النشر التلقائي الفوري في فيسبوك
-            publish_to_facebook(title, source_name, link)
+            # الخطوة 3: النشر التلقائي الفوري في فيسبوك باستخدام رابط مدونتك
+            publish_to_facebook(title, source_name, blogger_url)
             
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
             time.sleep(10)
