@@ -17,7 +17,7 @@ except ImportError:
     sys.exit(1)
 
 # ==========================================
-# إعدادات ومتغيرات البيئة (Blogger & Twitter)
+# إعدادات ومتغيرات البيئة (Blogger & Twitter & Facebook)
 # ==========================================
 BLOG_ID = os.environ.get("BLOG_ID")
 CLIENT_ID = os.environ.get("CLIENT_ID")
@@ -29,6 +29,10 @@ TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET")
 TWITTER_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN")
 TWITTER_ACCESS_TOKEN_SECRET = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+
+# مفاتيح فيسبوك
+FACEBOOK_PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID")
+FACEBOOK_ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN")
 
 LOG_FILE = "published_urls.txt"
 
@@ -77,9 +81,6 @@ def is_english(text):
     return (english_chars / total_chars) > 0.5
 
 # ==========================================
-# استخراج تفاصيل الخبر
-# ==========================================
-# ==========================================
 # استخراج تفاصيل الخبر (الصورة والمحتوى الكامل)
 # ==========================================
 def get_article_details(url):
@@ -101,24 +102,20 @@ def get_article_details(url):
 
         for p in paragraphs:
             text = p.get_text(" ", strip=True)
-            # تجاوز النصوص القصيرة (أقل من 50 حرفاً) لاستبعاد القوائم وحقوق الحفظ
-            # واستبعاد الجمل الإعلانية الشائعة
             if len(text) > 50 and not any(x in text for x in ["جميع الحقوق محفوظة", "اقرأ أيضاً", "تابعنا على"]):
                 content_lines.append(text)
 
         # 3. تجميع الفقرات في نصوص HTML جاهزة للنشر في بلوجر
         if content_lines:
-            # تغليف كل فقرة بوسم <p> مع تنسيق تباعد مريح للعين
             full_content = "".join([f"<p style='margin-bottom: 15px;'>{line}</p>" for line in content_lines])
         else:
-            # خطة بديلة (Fallback): في حال فشل سحب الفقرات لسبب ما في هيكل الموقع، نعود للوصف الميتا
             og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
             if og_desc and og_desc.get("content"):
                 full_content = f"<p>{og_desc.get('content')}</p>"
 
         return {
             "image": image,
-            "description": full_content # احتفظنا بنفس اسم المتغير حتى لا نضطر لتعديل الاستدعاءات في الدالة الرئيسية
+            "description": full_content 
         }
     except Exception as e:
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
@@ -234,14 +231,13 @@ def fetch_latest_news():
     return all_articles
 
 # ==========================================
-# دالة النشر التلقائي المحدثة في منصة تويتر (X)
+# دالة النشر التلقائي في منصة تويتر (X)
 # ==========================================
 def publish_to_twitter(title, source, link):
     if not all([TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET]):
         print("⚠️ مفاتيح تويتر (X API Secrets) مفقودة، تم تخطي النشر.")
         return False
     try:
-        # 🧠 إجبار Tweepy على استخدام الاتصال الصافي بـ API v2 المتوافق مع الحسابات المجانية
         client = tweepy.Client(
             consumer_key=TWITTER_API_KEY,
             consumer_secret=TWITTER_API_SECRET,
@@ -249,13 +245,11 @@ def publish_to_twitter(title, source, link):
             access_token_secret=TWITTER_ACCESS_TOKEN_SECRET
         )
         
-        # تنسيق الهاشتاق والنص ليتناسب مع قيود الحروف
         hashtag = source.replace(" ", "_")
         tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل:\n{link}"
         if len(tweet_text) > 270:
             tweet_text = f"🚨 خبر جديد من #{hashtag}:\n\n{title[:170]}...\n\n🔗 التفاصيل:\n{link}"
             
-        # استخدام دالة create_tweet المباشرة التابعة لـ v2
         response = client.create_tweet(text=tweet_text)
         
         if response and response.data:
@@ -267,6 +261,34 @@ def publish_to_twitter(title, source, link):
             
     except Exception as e:
         print(f"🐦 ❌ فشل النشر على تويتر بسبب قيود الخطة: {e}")
+        return False
+
+# ==========================================
+# دالة النشر التلقائي في صفحة فيسبوك
+# ==========================================
+def publish_to_facebook(title, source, link):
+    if not all([FACEBOOK_PAGE_ID, FACEBOOK_ACCESS_TOKEN]):
+        print("⚠️ بيانات فيسبوك (Page ID أو Token) مفقودة، تم تخطي النشر.")
+        return False
+        
+    url = f"https://graph.facebook.com/v21.0/{FACEBOOK_PAGE_ID}/feed"
+    hashtag = source.replace(" ", "_")
+    
+    payload = {
+        'message': f"📰 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل:\n{link}",
+        'access_token': FACEBOOK_ACCESS_TOKEN
+    }
+    
+    try:
+        response = requests.post(url, data=payload)
+        if response.status_code == 200:
+            print("📘 ✅ تم نشر الخبر بنجاح على صفحة فيسبوك!")
+            return True
+        else:
+            print(f"📘 ❌ فشل النشر على فيسبوك: {response.text}")
+            return False
+    except Exception as e:
+        print(f"📘 ❌ خطأ أثناء الاتصال بـ API فيسبوك: {e}")
         return False
 
 # ====================================================
@@ -295,8 +317,7 @@ def publish_to_blogger(token, title, summary, image, source, link):
     else:
         html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
-    # إعادة تنظيم الفاصل الحتمي لقص الصفحة الرئيسية بنجاح
-    html += "\n<!--more-->\n"
+    html += "\n\n"
 
     html += f"""
     <div dir="{direction}" style="text-align: {align}; font-size: 16px; line-height: 1.8;">
@@ -332,7 +353,7 @@ def publish_to_blogger(token, title, summary, image, source, link):
         return False
 
 # ==========================================
-# الدالة الرئيسية مع ميزة النشر المزدوج
+# الدالة الرئيسية مع ميزة النشر الثلاثي (بلوجر، تويتر، فيسبوك)
 # ==========================================
 def main():
     if not all([BLOG_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
@@ -382,8 +403,11 @@ def main():
             published_per_source[source_name] = 1 
             published_count += 1
             
-            # الخطوة 2: النشر التلقائي الفوري في تويتر (X) بعد نجاح مقال بلوجر
+            # الخطوة 2: النشر التلقائي الفوري في تويتر (X)
             publish_to_twitter(title, source_name, link)
+            
+            # الخطوة 3: النشر التلقائي الفوري في فيسبوك
+            publish_to_facebook(title, source_name, link)
             
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
             time.sleep(10)
