@@ -246,7 +246,8 @@ def publish_to_blogger(token, title, summary, image, source, link):
         html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
     # 🛑 تعديل جوهري: فصل الفاصل بأسطر جديدة \n مستقلة تماماً لإجبار القالب على قراءته وفصل المقال فوراً
-    html += "\n\n"
+    html += "\n<!--more-->\n"
+
     
     # محتوى المقال الداخلي
     html += f"""
