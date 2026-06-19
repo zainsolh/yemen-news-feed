@@ -275,8 +275,9 @@ def publish_to_facebook(title, source, link):
     hashtag = source.replace(" ", "_")
     
     payload = {
-        'message': f"📰 خبر جديد من #{hashtag}:\n\n{title}\n\n🔗 التفاصيل:\n{link}",
-        'access_token': FACEBOOK_ACCESS_TOKEN
+       'message': f"📰 خبر جديد من #{hashtag}:\n\n{title}",
+       'link': link,
+       'access_token': FACEBOOK_ACCESS_TOKEN
     }
     
     try:
