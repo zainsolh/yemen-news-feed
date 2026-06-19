@@ -421,7 +421,7 @@ def main():
             published_count += 1
             
             # الخطوة 2: النشر التلقائي الفوري في تويتر (X) باستخدام رابط مدونتك
-            publish_to_twitter(title, source_name, blogger_url)
+           # publish_to_twitter(title, source_name, blogger_url)
             
             # الخطوة 3: النشر التلقائي الفوري في فيسبوك باستخدام رابط مدونتك
             publish_to_facebook(title, source_name, blogger_url)
