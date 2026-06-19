@@ -413,12 +413,12 @@ def main():
             
             published_per_source[source_name] = 1 
             published_count += 1
-
             # --- التعديل هنا: محاولة النشر على تويتر مع تجاهل أي خطأ ---
             try:
-            publish_to_twitter(title, source_name, blogger_url)
-                except Exception as e:
+                publish_to_twitter(title, source_name, blogger_url)
+            except Exception as e:
                 print(f"🐦 تم تجاهل خطأ تويتر والاستمرار: {e}")
+                           
             # الخطوة 3: النشر التلقائي الفوري في فيسبوك باستخدام رابط مدونتك
             publish_to_facebook(title, a["summary"], a["image"], source, link) # تم تمرير الصورة والملخص
 
