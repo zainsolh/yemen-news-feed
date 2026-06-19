@@ -266,32 +266,38 @@ def publish_to_twitter(title, source, link):
 # ==========================================
 # دالة النشر التلقائي في صفحة فيسبوك
 # ==========================================
-def publish_to_facebook(title, source, link):
+
+def publish_to_facebook(title, summary, image, source, link):
     if not all([FACEBOOK_PAGE_ID, FACEBOOK_ACCESS_TOKEN]):
-        print("⚠️ بيانات فيسبوك (Page ID أو Token) مفقودة، تم تخطي النشر.")
+        print("⚠️ بيانات فيسبوك مفقودة.")
         return False
         
-    url = f"https://graph.facebook.com/v25.0/{FACEBOOK_PAGE_ID}/feed"
+    # تنظيف ملخص الخبر من أكواد HTML لعمل مقتطف نصي نظيف
+    clean_summary = re.sub('<[^<]+?>', '', summary).strip()
+    excerpt = f"{clean_summary[:120]}..." if len(clean_summary) > 120 else clean_summary
+    
     hashtag = source.replace(" ", "_")
-    
-    payload = {
-      'message': f"📰 خبر جديد من #{hashtag}:\n\n{title}",
-      'link': link,
-      'published': True,
-      'access_token': FACEBOOK_ACCESS_TOKEN
-}
-    
+    message = f"🗞️ {title}\n\n📝 {excerpt}\n\n🔗 اقرأ التفاصيل كاملة هنا:\n{link}\n\n#أخبار_اليمن #{hashtag} #دليل_الصحافة_اليمنية"
+
     try:
+        if image:
+            # رفع الصورة والنص معاً (آمن جداً من الحظر)
+            url = f"https://graph.facebook.com/v25.0/{FACEBOOK_PAGE_ID}/photos"
+            payload = {'url': image, 'message': message, 'access_token': FACEBOOK_ACCESS_TOKEN}
+        else:
+            # النشر كرابط عادي في حال غياب الصورة
+            url = f"https://graph.facebook.com/v25.0/{FACEBOOK_PAGE_ID}/feed"
+            payload = {'message': message, 'link': link, 'access_token': FACEBOOK_ACCESS_TOKEN}
+            
         response = requests.post(url, data=payload)
         if response.status_code == 200:
-           print("📘 ✅ تم نشر الخبر بنجاح على صفحة فيسبوك!")  
-           print("Facebook Response:", response.text)
-           return True
+            print("📘 ✅ تم النشر بأمان على صفحة فيسبوك!")
+            return True
         else:
             print(f"📘 ❌ فشل النشر على فيسبوك: {response.text}")
             return False
     except Exception as e:
-        print(f"📘 ❌ خطأ أثناء الاتصال بـ API فيسبوك: {e}")
+        print(f"📘 ❌ خطأ فيسبوك: {e}")
         return False
 
 # ====================================================
