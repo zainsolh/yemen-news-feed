@@ -389,13 +389,13 @@ def main():
         return
 
     published = load_published_items()
-    
     published_count = 0
     published_per_source = {} 
 
     for a in articles:
         source_name = a["source"]
         
+        # نشر خبر واحد فقط من كل مصدر في الدورة الواحدة
         if published_per_source.get(source_name, 0) >= 1:
             continue
 
@@ -408,10 +408,9 @@ def main():
 
         print(f"📰 جاري نشر خبر جديد من {source_name}: {title}")
         
-        # الخطوة 1: النشر في بلوجر (الدالة الآن تعيد رابط المدونة أو None)
+        # 1. النشر في بلوجر (الدالة تعيد رابط تدوينتك الخاص)
         blogger_url = publish_to_blogger(token, title, a["summary"], a["image"], source_name, link)
 
-        # التعديل هنا: نتحقق إذا كان الرابط موجوداً (أي نجحت العملية)
         if blogger_url:
             save_published_item(link)
             save_published_item(title)
@@ -420,15 +419,19 @@ def main():
             
             published_per_source[source_name] = 1 
             published_count += 1
-            # --- التعديل هنا: محاولة النشر على تويتر مع تجاهل أي خطأ ---
+            
+            # 2. النشر في تويتر (X) باستخدام رابط مدونتك (مع حماية لمنع توقف السكربت)
             try:
+                print(f"🐦 محاولة النشر على تويتر باستخدام الرابط: {blogger_url}")
                 publish_to_twitter(title, source_name, blogger_url)
             except Exception as e:
-                print(f"🐦 تم تجاهل خطأ تويتر والاستمرار: {e}")
-                           
-            # الخطوة 3: النشر التلقائي الفوري في فيسبوك باستخدام رابط مدونتك
-            publish_to_facebook(title, a["summary"], a["image"], source_name, link) # تم تمرير الصورة والملخص
-
+                print(f"🐦 تم تجاهل خطأ تويتر (الخدمة غير مدفوعة): {e}")
+            
+            # 3. النشر في فيسبوك باستخدام رابط مدونتك (blogger_url)
+            # ملاحظة: تأكد أن دالة publish_to_facebook تستقبل blogger_url بدلاً من link
+            publish_to_facebook(title, a["summary"], a["image"], source_name, blogger_url)
+            
+            print(f"📘 تم النشر على فيسبوك برابط مدونتك: {blogger_url}")
             
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
             time.sleep(10)
@@ -439,6 +442,7 @@ def main():
         if published_count >= 12:
             print("🚀 تم الوصول للحد الأقصى لهذه الدورة (12 أخبار متفرقة).")
             break
+
 
 if __name__ == "__main__":
     main()
