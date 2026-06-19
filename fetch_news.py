@@ -266,13 +266,19 @@ def publish_to_twitter(title, source, link):
 # ==========================================
 # دالة النشر التلقائي في صفحة فيسبوك
 # ==========================================
+# ==========================================
+# دالة النشر التلقائي في صفحة فيسبوك (مصححة)
+# ==========================================
 def publish_to_facebook(title, summary, image, source_name, link):
     if not all([FACEBOOK_PAGE_ID, FACEBOOK_ACCESS_TOKEN]):
+        print("⚠️ بيانات فيسبوك مفقودة.")
         return False
         
     url = f"https://graph.facebook.com/v25.0/{FACEBOOK_PAGE_ID}/feed"
-    # استخدمنا ملخصاً قصيراً لضمان عدم تجاوز الحد المسموح
-    message = f"📰 {title}\n\n🔗 اقرأ التفاصيل: {link}\n\n#أخبار_اليمن #{source.replace(' ', '_')}"
+    
+    # تصحيح الخطأ: تم تغيير 'source' إلى 'source_name'
+    hashtag = source_name.replace(' ', '_')
+    message = f"📰 {title}\n\n🔗 اقرأ التفاصيل: {link}\n\n#أخبار_اليمن #{hashtag}"
     
     payload = {
       'message': message,
@@ -291,6 +297,7 @@ def publish_to_facebook(title, summary, image, source_name, link):
     except Exception as e:
         print(f"📘 ❌ خطأ فيسبوك: {e}")
         return False
+
 
 
             
