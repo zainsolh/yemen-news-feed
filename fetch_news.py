@@ -266,34 +266,33 @@ def publish_to_twitter(title, source, link):
 # ==========================================
 # دالة النشر التلقائي في صفحة فيسبوك
 # ==========================================
-
-def publish_to_facebook(title, source, link):
+def publish_to_facebook(title, summary, image, source, link):
     if not all([FACEBOOK_PAGE_ID, FACEBOOK_ACCESS_TOKEN]):
-        print("⚠️ بيانات فيسبوك (Page ID أو Token) مفقودة، تم تخطي النشر.")
         return False
         
     url = f"https://graph.facebook.com/v25.0/{FACEBOOK_PAGE_ID}/feed"
-    hashtag = source.replace(" ", "_")
+    # استخدمنا ملخصاً قصيراً لضمان عدم تجاوز الحد المسموح
+    message = f"📰 {title}\n\n🔗 اقرأ التفاصيل: {link}\n\n#أخبار_اليمن #{source.replace(' ', '_')}"
     
     payload = {
-      'message': f"📰 خبر جديد من #{hashtag}:\n\n{title}",
+      'message': message,
       'link': link,
-      'published': True,
       'access_token': FACEBOOK_ACCESS_TOKEN
-}
+    }
     
     try:
         response = requests.post(url, data=payload)
         if response.status_code == 200:
-           print("📘 ✅ تم نشر الخبر بنجاح على صفحة فيسبوك!")  
-           print("Facebook Response:", response.text)
+           print("📘 ✅ تم النشر على فيسبوك!")  
            return True
         else:
-            print(f"📘 ❌ فشل النشر على فيسبوك: {response.text}")
+            print(f"📘 ❌ فشل فيسبوك: {response.text}")
             return False
     except Exception as e:
-        print(f"📘 ❌ خطأ أثناء الاتصال بـ API فيسبوك: {e}")
+        print(f"📘 ❌ خطأ فيسبوك: {e}")
         return False
+
+
             
 # ====================================================
 # دالة النشر المحدثة لبلوجر (تتضمن الفاصل المصحح والمحاذاة)
