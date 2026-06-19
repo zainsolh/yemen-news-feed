@@ -282,8 +282,9 @@ def publish_to_facebook(title, source, link):
     try:
         response = requests.post(url, data=payload)
         if response.status_code == 200:
-            print("📘 ✅ تم نشر الخبر بنجاح على صفحة فيسبوك!")
-            return True
+           print("📘 ✅ تم نشر الخبر بنجاح على صفحة فيسبوك!")  
+           print("Facebook Response:", response.text)
+           return True
         else:
             print(f"📘 ❌ فشل النشر على فيسبوك: {response.text}")
             return False
