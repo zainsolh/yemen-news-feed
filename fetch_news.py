@@ -266,7 +266,7 @@ def publish_to_twitter(title, source, link):
 # ==========================================
 # دالة النشر التلقائي في صفحة فيسبوك
 # ==========================================
-def publish_to_facebook(title, summary, image, source, link):
+def publish_to_facebook(title, summary, image, source_name, link):
     if not all([FACEBOOK_PAGE_ID, FACEBOOK_ACCESS_TOKEN]):
         return False
         
@@ -420,7 +420,7 @@ def main():
                 print(f"🐦 تم تجاهل خطأ تويتر والاستمرار: {e}")
                            
             # الخطوة 3: النشر التلقائي الفوري في فيسبوك باستخدام رابط مدونتك
-            publish_to_facebook(title, a["summary"], a["image"], source, link) # تم تمرير الصورة والملخص
+            publish_to_facebook(title, a["summary"], a["image"], source_name, link) # تم تمرير الصورة والملخص
 
             
             print("⏳ الانتظار 10 ثوانٍ قبل المقال القادم لمنع الحظر...")
