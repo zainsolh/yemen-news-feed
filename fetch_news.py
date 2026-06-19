@@ -271,7 +271,7 @@ def publish_to_facebook(title, source, link):
         print("⚠️ بيانات فيسبوك (Page ID أو Token) مفقودة، تم تخطي النشر.")
         return False
         
-    url = f"https://graph.facebook.com/v21.0/{FACEBOOK_PAGE_ID}/feed"
+    url = f"https://graph.facebook.com/v25.0/{FACEBOOK_PAGE_ID}/feed"
     hashtag = source.replace(" ", "_")
     
     payload = {
