@@ -83,43 +83,59 @@ def is_english(text):
 # ==========================================
 # استخراج تفاصيل الخبر (الصورة والمحتوى الكامل)
 # ==========================================
+
 def get_article_details(url):
     try:
         r = scraper.get(url, timeout=20)
         soup = BeautifulSoup(r.text, "lxml")
 
         image = ""
-        full_content = ""
+        summary_html = ""
 
-        # 1. استخراج الصورة البارزة
+        # استخراج الصورة البارزة
         og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
         if og_image and og_image.get("content"):
             image = og_image.get("content")
 
-        # 2. استخراج محتوى الخبر بالكامل (الاعتماد على فقرات النص)
+        # استخراج الفقرات
         paragraphs = soup.find_all("p")
         content_lines = []
 
         for p in paragraphs:
             text = p.get_text(" ", strip=True)
-            if len(text) > 50 and not any(x in text for x in ["جميع الحقوق محفوظة", "اقرأ أيضاً", "تابعنا على"]):
+
+            if (
+                len(text) > 50
+                and "جميع الحقوق محفوظة" not in text
+                and "اقرأ أيضاً" not in text
+                and "تابعنا على" not in text
+            ):
                 content_lines.append(text)
 
-        # 3. تجميع الفقرات في نصوص HTML جاهزة للنشر في بلوجر
+        # أخذ أول 3 فقرات فقط بدلاً من الخبر الكامل
+        content_lines = content_lines[:3]
+
         if content_lines:
-            full_content = "".join([f"<p style='margin-bottom: 15px;'>{line}</p>" for line in content_lines])
+            summary_html = "".join(
+                [f"<p style='margin-bottom:15px'>{line}</p>" for line in content_lines]
+            )
         else:
             og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
+
             if og_desc and og_desc.get("content"):
-                full_content = f"<p>{og_desc.get('content')}</p>"
+                summary_html = f"<p>{og_desc.get('content')}</p>"
 
         return {
             "image": image,
-            "description": full_content 
+            "description": summary_html
         }
+
     except Exception as e:
         print(f"❌ خطأ استخراج تفاصيل الخبر من {url}: {e}")
-        return {"image": "", "description": ""}
+        return {
+            "image": "",
+            "description": ""
+        }
 
 # ==========================================
 # إدارة سجل منع التكرار
@@ -348,10 +364,15 @@ def publish_to_blogger(token, title, summary, image, source, link):
     if source in ["bin sport", "Arabkoora"]:
         post_labels.append("رياضة")
 
+    meta_desc = BeautifulSoup(summary, "lxml").get_text(" ", strip=True)[:150]
+
     payload = {
-        "title": title,
-        "content": html,
-        "labels": post_labels
+       "title": title,
+       "content": html,
+       "labels": post_labels,
+       "customMetaData": meta_desc
+
+    
     }
 
     try:
