@@ -120,12 +120,12 @@ def get_article_details(url):
            [f"<p style='margin-bottom:15px'>{line}</p>" for line in content_lines]
     )
 
-       summary_html += """
-         <div style="background:#f8f9fa;padding:10px;border-right:4px solid #007bff;margin:15px 0;">
-         <strong>ملخص الخبر من دليل الصحافة اليمنية.</strong><br>
-         للاطلاع على التفاصيل الكاملة يمكن زيارة المصدر الأصلي.
-        </div>
-        """
+           summary_html += """
+           <div style="background:#f8f9fa;padding:10px;border-right:4px solid #007bff;margin:15px 0;">
+           <strong>ملخص الخبر من دليل الصحافة اليمنية.</strong><br>
+           للاطلاع على التفاصيل الكاملة يمكن زيارة المصدر الأصلي.
+           </div>
+           """
         else:
             og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
 
