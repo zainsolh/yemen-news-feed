@@ -346,7 +346,7 @@ def publish_to_blogger(token, title, summary, image, source, link):
 
     html = ""
     if image:
-        html += f'<img src="{image}" alt="{title}" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>\n'
+       html += f'<img src="{image}" alt="{title}" title="{title}" loading="lazy" style="max-width:100%; height:auto; display:block; margin:10px auto;"><br>\n'
     else:
         html += f'<div style="background:#f8f9fa; border-left:5px solid #007bff; padding:15px; margin:10px 0; font-weight:bold; font-size:18px; text-align:center;">📢 تغطية إخبارية متميزة من موقع {source}</div><br>\n'
 
